@@ -1,0 +1,30 @@
+---
+description: Manual Feature Validation via CLI
+alwaysApply: false
+---
+### **Description**
+A focused session that engages the Quality Assurance archetype to manually validate a specific task from the backlog.md by interacting exclusively with the application's text-based command-line interface (CLI).
+
+### **Execution Flow**
+
+1.  **Task Selection**
+    * **Action**: Select a task that is ready for validation.
+    * **Prompt**: "Let's make sure everything works as expected. Which task should we validate through the CLI?"
+    * **Backend Action**: listTasksFrom([backlog.md](mdc:docs/backlog.md), status=["Ready for Test"]).
+
+2.  **Engage Quality Assurance Professional Archetype ([global.mdc](mdc:.cursor/rules/global.mdc))**
+    * **Action**: Load the selected task's details (Description, Acceptance Criteria) and engage the Quality Assurance Professional archetype.
+    * **Opening Prompt**: "Okay, I'm ready to help you validate: [Task Description]. I have the acceptance criteria in context. Let's begin testing using the CLI."
+
+3.  **Interactive QA Session**
+    * **Action**: The AI guides the manual testing process. It proposes validation steps based on the acceptance criteria and suggests specific CLI commands to execute. The focus is on verifying the critical "happy path" functionality and ensuring the output is correct.
+    * **Example Prompt**: "To verify the acceptance criterion '[Criterion 1]', we need to see if the application can [expected outcome]. Let's run the following command to test this: your-app-cli [command] --parameter [value]. What is the result?"
+
+4.  **Record Findings**
+    * **Action**: After testing, the AI prompts the user to make a final judgment on the feature's quality based on the CLI output.
+    * **Prompt**: "We have tested the core functionality via the CLI. Based on the results, does this task pass its acceptance criteria? We can mark it as 'Passed QA' or 'Needs Revision'."
+
+5.  **Completion**
+    * **Action**: The session concludes when the task status is updated.
+    * **Closing Prompt**: "Great. The task status has been updated in [backlog.md]. This feature is now officially validated."
+    Optional Action: updateTaskStatus([backlog.md](mdc:docs/backlog.md), taskId, newStatus).

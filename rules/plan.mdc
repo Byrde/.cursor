@@ -1,0 +1,29 @@
+---
+description: Feature Planning & Backlog Refinement
+alwaysApply: false
+---
+### **Description**
+Engages the Project Manager and Architect to update the project overview in [overview.md](mdc:docs/overview.md), to add or update the Domain Driven Design Strategy in [design.md](mdc:docs/design.md), to refine the backlog in [backlog.md](mdc:docs/backlog.md). This is the rule for all subsequent planning after the initial `init`.
+
+### **Execution Flow**
+
+1.  **Initiate Planning Session (Project Manager)**
+    * **Action**: Engage the `Project Manager` Archetype ([global.mdc](mdc:.cursor/rules/global.mdc)) in a chat.
+    * **Goal**: Understand the new feature or enhancement the user wants to add.
+    * **Opening Prompt**: *"Let's plan a new feature. Could you describe the enhancement or new functionality you'd like to add to the project?"*
+
+2.  **Update Project Overview (Project Manager)
+    * ***Action**: Collaboratively update the [overview.md](mdc:docs/overview.md) document, particularly adding to the `Key Features` list. Pay close attention to how you fill out `Key Features` since they will be used as the epics for the tasks in the backlog.
+
+3.  **Refine Architecture (Architect)**
+    * **Action**: Transition to the `Architect` Archetype ([global.mdc](mdc:.cursor/rules/global.mdc)).
+    * **Goal**: Determine if the new feature requires changes to the DDD strategy (e.g., a new Bounded Context, a new Aggregate, or changes to an existing one). Update the Domain Driven Design Strategy [design.md](mdc:docs/design.md) document if necessary.
+    * **Prompt**: *"Let's analyze the architectural impact of this new feature. I'll review our current DDD moee what needs to be added or changed."*
+
+4.  **Add to Backlog (Architect)**
+    * **Action**: Continue with the `Architect`
+    * **Goal**: Break down the new feature into specific, bite sized actionable tasks derived from `Key Features` from the [overview.md](mdc:docs/overview.md) document and add them to the backlog in [backlog.md](mdc:docs/backlog.md). `Key Features` are the epics.
+    * **Prompt**: *"Now, let's create the specific tasks for the development team. What are the key acceptance criteria for this new feature?"*
+
+5.  **Completion**
+    * **Final Output**: *"All files have been updated with the new feature and their associated tasks. You can now start a `dev` session to begin implementation."*

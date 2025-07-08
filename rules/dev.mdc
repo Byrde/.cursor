@@ -1,0 +1,37 @@
+---
+description: Feature Development
+alwaysApply: false
+---
+### **Description**
+A focused session that engages the Software Engineer archetype to write code for a specific task defined in [backlog.md](mdc:docs/backlog.md).
+
+### **Execution Flow**
+
+1.  **Task Selection**
+    * **Action**: Select the first 'In Progress' or 'TODO' task from the backlog.
+    * **Backend Action**: `listTasksFrom([backlog.md](mdc:docs/backlog.md),status="TODO")`.
+
+2.  **Engage Software Engineer Archetype ([global.mdc](mdc:.cursor/rules/global.mdc))**
+    * **Action**: Once a task is selected, load its details (Description, Acceptance Criteria) and engage the `Software Engineer` archetype.
+    * **Opening Prompt**: *"Okay, I'm ready to help you with: [Task Description]. I have the acceptance criteria and our existing codebase in context."*
+
+3.  **Interactive Coding Session**
+    * **Action**: The AI leads writing and refactoring code, strictly adhering to the project's established patterns ([global.mdc](mdc:.cursor/rules/global.mdc)) and the task's requirements ([backlog.md](mdc:docs/backlog.md)). A key part of this process is **implementing or updating the text-based CLI** to ensure all new features and modifications are accessible for quality assurance. The AI can write functions, suggest implementations, and explain complex logic.
+
+3. **Update CLI Documentation**
+    * **Action**: After code changes are complete, the AI will update the CLI's usage documentation to reflect the work. It will add or modify commands, parameters, and examples in docs/cli.md.
+    **Initiation Prompt**: "The code implementation is done. Now, I will update docs/cli.md to document the new CLI functionality for our QA process."
+
+4.  **Conservative Test Generation**
+    * **Action**: The AI will write tests for the newly introduced code. It will adhere to a conservative testing strategy, focusing only on critical paths and consolidating test cases where possible.
+    * **Guiding Principles**:
+        * Generate a maximum of three unit tests per function.
+        * Focus exclusively on the most critical, "happy path" scenarios.
+        * Do not test trivial implementations or edge cases.
+        * If both unit and integration tests are implemented, the test runner must be configured to execute each suite independently (e.g., via separate scripts like test:unit and test:integration).
+    * **Initiation Prompt**: *"Now that the implementation looks solid, let's write some tests. I will add up to three tests for each new function, focusing only on the main critical path to ensure everything works as expected."*
+
+5.  **Completion**
+    * **Action**: The session concludes when the user feels the task is complete.
+    * **Closing Prompt**: *"This looks like a solid implementation, and the critical paths are tested. Do you want to update the task status in [backlog.md](mdc:docs/backlog.md) to 'Ready to Test'?"*
+    * **Optional Action**: `updateTaskStatus([backlog.md](mdc:docs/backlog.md), taskId, newStatus)`.
