@@ -41,5 +41,5 @@ This rule executes a one-time, comprehensive setup for a new project. It covers 
 
 7.  **Phase 7: Update Tasks (Architect)**
     * **Action**: Continue the chat with the `Architect`
-    * **Goal**: Update the status of tasks in the [backlog.md](mdc:docs/backlog.md) document in case we inadvertently worked on some of the tasks while Scaffolding.
+    * **Goal**: Update the status of tasks in the [backlog.md](mdc:docs/backlog.md) document in case we inadvertently worked on some of the tasks while Scaffolding. Ensure that if we worked on some tasks and they require manual Quality Insurance that we mark the status appropriately according to our project management practices [global.mdc](mdc:.cursor/rules/global.mdc).
     * **Final Output**: *"Scaffolding complete. Your project is ready for development. Review [backlog.md](mdc:docs/backlog.md) for the backlog and start a `dev` session when you're ready to code"*

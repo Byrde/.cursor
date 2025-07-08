@@ -32,5 +32,5 @@ A focused session that engages the Software Engineer archetype to write code for
 
 5.  **Completion**
     * **Action**: The session concludes when the user feels the task is complete.
-    * **Closing Prompt**: *"This looks like a solid implementation, and the critical paths are tested. Do you want to update the task status in [backlog.md](mdc:docs/backlog.md) to 'Ready to Test'?"*
+    * **Closing Prompt**: *"This looks like a solid implementation, and the critical paths are tested. If you're good with the implementation, I'll update the task in [backlog.md](mdc:docs/backlog.md) to 'Ready to Test'?"*
     * **Optional Action**: `updateTaskStatus([backlog.md](mdc:docs/backlog.md), taskId, newStatus)`.
