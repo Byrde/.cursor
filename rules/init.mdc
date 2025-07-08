@@ -1,5 +1,4 @@
 ---
-description: This rule executes a one-time, comprehensive setup for a new project. It covers the initial planning, architectural design, and scaffolding of the codebase and its supporting tooling.
 alwaysApply: false
 ---
 ### **Description**

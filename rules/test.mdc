@@ -1,5 +1,4 @@
 ---
-description: A focused session that engages the Quality Assurance archetype to manually validate a specific task from the backlog by interacting exclusively with the application's text-based command-line interface (CLI).
 alwaysApply: false
 ---
 ### **Description**
