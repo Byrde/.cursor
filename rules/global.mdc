@@ -1,23 +1,57 @@
 ---
-description: This rules files contains rules of engagement, project management practices, design practices, development practices, testing practices, style guides, etc.
+description: This rules files contains the rules of engagement.
 alwaysApply: true
 ---
 ## **Intent-aware behavior**
-- Only follow the phase flow when the user’s intent is to build or change the product ("build mode"). If the user is exploring, learning, or discussing without a build intent, do not initiate phases.
-- Signals of build intent include:
-  - Explicit commands: `@init.mdc`, `@plan.mdc`, `@prototype.mdc`, `@dev.mdc`, `@test.mdc`
-  - Requests to implement/modify code, add features/tasks, prototype a backlog item, or run tests/CI
-  - Direct references to `docs/backlog.md` tasks or acceptance criteria to be executed
-- Signals of non-build intent include:
-  - General Q&A, brainstorming, research, or reading/explaining code/docs
-  - High-level design discussion without asking to create/update project artifacts
-  - Requests for examples, comparisons, or recommendations with no action on the repo
-- Behavior when not in build mode:
-  - Answer directly and minimally; do not start Init/Plan/Prototype/Dev/Test
-  - Do not modify `docs/` or `prototypes/` or backlog unless explicitly requested
-  - If it seems appropriate to enter a phase, ask one concise clarifying question first
-- Ambiguity rule: When intent is unclear, ask one clarifying question and wait for confirmation before taking action.
-- Safety rule: Never perform irreversible operations (e.g., scaffolding, bulk deletes) without explicit user approval.
+### Purpose
+- Provide a single decision point that translates the latest user intent and current project state into the correct next action. Keep momentum, avoid unnecessary questions, and ensure work flows through Init → Plan → (Prototype) → Dev → Test → Complete.
+
+### Inputs considered (ranked)
+1. Explicit user request (e.g., “scaffold”, “add feature”, “prototype”, “implement”, “test”).
+2. Project state signals:
+   - Init checks: existence and completeness of `docs/overview.md`, `docs/design.md`, `docs/backlog.md` (see Init idempotency and pre-checks).
+   - Backlog status distribution: presence of `In Progress`, `Ready to Test`, and top‑priority `TODO`.
+   - Prototype linkage: `Prototype` column entries for tasks.
+   - Build/test health when applicable.
+3. Recently modified files and open editor context.
+
+### Phase selection (decision tree)
+Follow the first matching rule below:
+- Test: If the user asks to validate/QA, or there is at least one `Ready to Test` task and no higher‑priority blocking work.
+- Fix/Finish current work: If there is an `In Progress` task, continue with Dev to finish it before starting anything else.
+- Dev: If the user asks to implement/build/refactor a defined task, or the top backlog item is `TODO` and ready to start.
+- Prototype: If the user expresses uncertainty, feasibility/risk concerns, or a selected `TODO` task is high‑risk with empty `Prototype` column.
+- Plan: If the user asks to add/change features, priorities, or design strategy; or Init is complete but the backlog/strategy needs refinement.
+- Init: If the project is not initialized (Init checks fail) or the user explicitly asks to scaffold/init a new project.
+
+If multiple rules match, resolve by priority: Test > Finish `In Progress` > Fix broken build > Dev > Prototype > Plan > Init.
+
+### Entry/exit expectations per phase
+- Init (one‑time): Create `docs/overview.md`, `docs/design.md`, `docs/backlog.md`. Do not re‑run if checks pass; instead move to Plan.
+- Plan: Update overview/design/backlog. Ensure `Prototype` column exists and leave it empty for new tasks.
+- Prototype: Create `prototypes/[feature-or-task-slug].[ext]`; record its path + short findings in the task’s `Prototype` column; do not change task `Status`.
+- Dev: Implement the highest‑priority eligible task. Maintain and document the CLI in `docs/cli.md`. When code for a task is complete, move it to `Ready to Test`.
+- Test: Validate via CLI. If acceptance criteria pass, set task to `Complete`; otherwise return it to Dev with concise notes.
+
+### Clarifications & confirmation policy
+- Prefer action over questions. Ask at most one clarifying question only when the intended phase cannot be safely inferred.
+- Do not ask to proceed for safe, read‑only, or obviously incremental actions.
+- Do ask once before potentially disruptive actions: project scaffolding, mass file generation, deletions/migrations, long‑running commands.
+
+### Handling ambiguity
+- Propose a default next action with reasoning and proceed after a short wait for objections. If no objection, execute the default.
+- When intent mixes phases (e.g., “add feature and build it”), sequence: Plan → (Prototype if risky) → Dev → Test.
+
+### Guardrails
+- Idempotency: Never re‑run Init if Init checks pass. Never overwrite existing docs; perform additive, diff‑aware edits.
+- Single WIP: Only one `In Progress` task at a time, always the highest‑priority eligible item.
+- Minimalism: Prefer the smallest change that moves the task forward; avoid speculative scaffolding/dependencies.
+- Source layout: Maintain `domain/`, `infrastructure/`, `api/` structure and a single wiring entrypoint as defined below.
+
+### Autonomy & status updates
+- Provide a brief status update describing what just happened and what will happen next; then execute.
+- After substantive edits, run build/tests where applicable and fix failures before declaring the phase complete.
+- Keep `docs/cli.md` current whenever CLI‑visible behavior changes.
 
 ## **Flow**
 ### Phases
@@ -59,71 +93,3 @@ alwaysApply: true
 - Prototype: `prototypes/*`, `docs/backlog.md` (Prototype column updates)
 - Dev: source code, `docs/cli.md` kept current with CLI usage
 - Test: test artifacts/results; update `docs/backlog.md` statuses
-
-## **Project Management Practices**
-1. Adhere to Task Status Workflow
-All tasks within the backlog.md file must strictly follow this status progression:
-- TODO
-- In Progress
-- Ready to Test
-- Complete
-Do not deviate from this sequence.
-
-2. Execute Tasks in Order
-- As a Developer: Your focus is on the first task in the backlog with the status In Progress or TODO. You must complete this task before moving to the next one. You can only have one task designated as In Progress at any given time, this task must be the highest-priority item in the TODO list. Before implementing, check the task’s `Prototype` column in `docs/backlog.md` and use it as implementation guidance if present.
-- As a Tester: Your focus is on the first task in the backlog with the status Ready to Test. You must complete testing for this task before proceeding to the next one.
-
-3. Deconstruct Tasks Logically
-When breaking down larger objectives into smaller tasks, ensure each task is:
-- Clear and Understandable: The goal of the task should be self-evident.
-- Easily Verifiable: The completion of the task must be simple to validate.
-- Sequentially Ordered: Define tasks in the precise order they need to be executed.
-
-## **Design Practices**
-1. Master the Ubiquitous Language
-Create a Shared Glossary: Actively collaborate with domain experts to build a single, unambiguous language for all business concepts.
-
-Use it Everywhere: This language is mandatory in meetings, diagrams, documentation, and most critically, in your code (class names, methods, variables).
-
-Challenge Ambiguity: When a term is used differently by various people, treat it as a signal to investigate and clarify the underlying domain model.
-
-2. Identify and Protect Bounded Contexts
-Map Your Domain: Start by drawing high-level boundaries around different business areas like Sales, Shipping, or Billing.
-
-Embrace Separate Models: Accept that a "Product" in the Sales context is different from a "Product" in the Shipping context. Do not build one class to rule them all.
-
-Define Explicit Integrations: Be deliberate about how contexts communicate. Use patterns like an Anti-Corruption Layer (ACL) to prevent a foreign model from "leaking" into and corrupting your context.
-
-3. Prioritize Your Modeling Efforts
-Find the Core Domain: Identify the specific part of your software that delivers a competitive advantage. This is where you should focus your most intensive design efforts.
-
-Simplify Supporting Subdomains: For areas that are necessary but not a competitive advantage (e.g., internal reporting), a simpler, more data-centric model is often sufficient.
-
-Buy, Don't Build, Generic Subdomains: For solved problems like authentication or email services, use off-the-shelf solutions or libraries instead of building them from scratch.
-
-4. Use Aggregates to Enforce Rules
-Enforce Business Invariants: An Aggregate's primary job is to ensure that core business rules (invariants) are never broken. For example, an order's total cost must always equal the sum of its line items.
-
-Designate a Single Entry Point (the Root): All modifications to any object within the aggregate must go through a single "Aggregate Root." This prevents uncontrolled changes that could corrupt the model's state.
-
-Keep Aggregates Small: Model the smallest possible cluster of objects necessary to enforce a transactional rule. Large aggregates are a common anti-pattern that leads to performance and concurrency issues.
-
-5. No matter the language, we always try to divide the source files in to three high level folders. These should however, be looked at as packages, not in the root of the repository folder, i.e in Java these would be `src/main/java/org/example/api`, i.e in Javascript these would be `src/api`, etc.
-    - The `domain` folder, where the core domain is defined, some logic is acceptable here, but never reference infrastructure, implementation specific components, etc.
-    - The `infrastructure` folder, where all concrete "repositories", and other DDD concepts are implemented.
-    - The `api` folder, where all logic is implemented, domain orchestrated, and typically the entry point for high level system functions. API files should not directly invoke infrastructure, we must always use "interfaces", "repositories", etc.
-
-6. All wiring of domain, infrastructure, and api should be done in a single entrypoint file in the chosen programming language's source folder.
-
-## **Development Practices**
-1. Prioritize Dependency Hygiene
-Before writing any code, always verify and use the latest stable versions of all required dependencies. Introduce new dependencies only when they offer a substantial and immediate benefit to the task at hand. Avoid adding dependencies for minor functionalities that can be achieved with a reasonable amount of custom code.
-
-2. Embrace Minimalist Code Generation
-Your primary goal is to generate the simplest, most concise code possible that effectively solves the problem. Adhere to the following principles:
-- Clarity Over Premature Complexity: Write code that is easy to read and understand. Complexity should only be introduced when the problem genuinely demands it, not as a default approach.
-- Sensible Defaults: Utilize sane and widely accepted default configurations whenever possible to reduce boilerplate and unnecessary setup.
-- Necessary Code Only: Avoid generating code or configuration that isn't immediately required. The codebase should be lean and focused on the current task.
-
-3. Ensure a Documented Text-Based Interface
-Always build software with a text-based or command-line interface (CLI). As the CLI is implemented or modified, its usage documentation must be maintained in docs/cli.md. This allows an AI agent to perform manual QA tests on critical features and APIs, ensuring the core functionality works as intended. This documented interface is the primary channel for AI-driven testing.
