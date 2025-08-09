@@ -8,7 +8,7 @@ Add this repository as a submodule in the root of your target project at the pat
 ### Add the submodule
 
 ```bash
-git submodule add -b main https://github.com/mallaire77/.cursor .cursor
+git submodule add -b main https://github.com/mallaire77/.cursor
 git add .gitmodules .cursor
 git commit -m "Add Cursor rules submodule"
 ```
