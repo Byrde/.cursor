@@ -1,22 +1,22 @@
 ---
 alwaysApply: false
-description: A focused session where you roleplay as the software engineer archetype to write code for priority task(s) defined in [backlog.md](mdc:docs/backlog.md).
+description: A focused session where you roleplay as the software engineer archetype to write code for priority task(s) defined in docs/backlog.md.
 ---
 ## **Description**
-A focused session where you roleplay as the software engineer archetype to write code for priority task(s) defined in [backlog.md](mdc:docs/backlog.md).
+A focused session where you roleplay as the software engineer archetype to write code for priority task(s) defined in docs/backlog.md.
 
 ## Persona
-This development session engages the Software Engineer persona defined in [personas.mdc](.cursor/rules/personas.mdc).
+This development session engages the Software Engineer persona defined in @persona.mdc.
 
 ## **Execution Flow**
 
 1.  **Task Selection**
     * **Action**: Select the first 'In Progress' or 'TODO' task from the backlog.
-    * **Backend Action**: `listTasksFrom([backlog.md](mdc:docs/backlog.md),status="TODO")`.
+    * **Backend Action**: `listTasksFrom(docs/backlog.md,status="TODO")`.
 
 2.  **Prototype Check**
     * **Action**: Check if a prototype exists for the selected task:
-      - Prefer the `Prototype` column in [backlog.md](mdc:docs/backlog.md) for a direct reference and notes
+      - Prefer the `Prototype` column in docs/backlog.md for a direct reference and notes
     * **If prototype exists**: Load the prototype file and extract implementation guidance, patterns, and lessons learned.
     * **If no prototype exists**: Proceed with standard implementation approach.
 
@@ -26,7 +26,7 @@ This development session engages the Software Engineer persona defined in [perso
     * **Opening Prompt (without prototype)**: *"Okay, I'm ready to help you with: [Task Description]. I have the acceptance criteria and our existing codebase in context."*
 
 4.  **Interactive Coding Session**
-    * **Action**: The AI leads writing and refactoring code, strictly adhering to the project's established patterns ([practices.mdc](.cursor/rules/practices.mdc)), and the task's requirements ([backlog.md](mdc:docs/backlog.md)). If a prototype exists, use its patterns and insights as implementation guidance. A key part of this process is **implementing or updating the text-based CLI** to ensure all new features and modifications are accessible for quality assurance. The AI can write functions, suggest implementations, and explain complex logic.
+    * **Action**: The AI leads writing and refactoring code, strictly adhering to the project's established patterns (@practices.mdc), and the task's requirements (docs/backlog.md). If a prototype exists, use its patterns and insights as implementation guidance. A key part of this process is **implementing or updating the text-based CLI** to ensure all new features and modifications are accessible for quality assurance. The AI can write functions, suggest implementations, and explain complex logic.
 
 5. **Update CLI Documentation**
     * **Action**: After code changes are complete, the AI will update the CLI's usage documentation to reflect the work. It will add or modify commands, parameters, and examples in docs/cli.md.
@@ -43,5 +43,5 @@ This development session engages the Software Engineer persona defined in [perso
 
 7.  **Completion**
     * **Action**: The session concludes when the user feels the task is complete.
-    * **Closing Prompt**: *"This looks like a solid implementation, and the critical paths are tested. If you're good with the implementation, I'll update the task in [backlog.md](mdc:docs/backlog.md) to 'Ready to Test'?"*
-    * **Optional Action**: `updateTaskStatus([backlog.md](mdc:docs/backlog.md), taskId, newStatus)`.
+    * **Closing Prompt**: *"This looks like a solid implementation, and the critical paths are tested. If you're good with the implementation, I'll update the task in docs/backlog.md to 'Ready to Test'?"*
+    * **Optional Action**: `updateTaskStatus(docs/backlog.md, taskId, newStatus)`.

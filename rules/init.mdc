@@ -6,7 +6,7 @@ description: This rule executes a one-time project setup. It covers the initial 
 This rule executes a one-time project setup. It covers the initial planning, architectural design, and scaffolding of the codebase and its dependent tooling.
 
 ## Personas
-This phase engages personas defined in [personas.mdc](.cursor/rules/personas.mdc):
+This phase engages personas defined in @persona.mdc:
 - Project Manager
 - Architect
 
@@ -14,32 +14,32 @@ This phase engages personas defined in [personas.mdc](.cursor/rules/personas.mdc
 
 1.  **Phase 1: Project Overview (Project Manager)**
     * **Action**: Engage the `Project Manager` archetype in a chat.
-    * **Goal**: Review the [overview.md](mdc:.cursor/templates/overview.md) template file and use it to create a new overview.md file specific to our project in [overview.md](mdc:docs/overview.md); collaboratively fill out the entire `## Overview` section, following the conversational flow defined in the original [overview.md](mdc:docs/overview.md). If the header `# Software Development Project: [Project Name]` still has `[Project Name]` it is still in "template" mode; if `[Project Name]` has been replaced by an actual project name, then the template has likely been filled out, verify this with the user! Pay close attention to how you fill out `Key Features` since they will be used as the epics for the tasks in the backlog.
+    * **Goal**: Review the .cursor/templates/overview.md template file and use it to create a new overview.md file specific to our project in docs/overview.md; collaboratively fill out the entire `## Overview` section, following the conversational flow defined in the original docs/overview.md. If the header `# Software Development Project: [Project Name]` still has `[Project Name]` it is still in "template" mode; if `[Project Name]` has been replaced by an actual project name, then the template has likely been filled out, verify this with the user! Pay close attention to how you fill out `Key Features` since they will be used as the epics for the tasks in the backlog.
     * **Opening Prompt**: *"Welcome to your new project! I'm here to help you lay the groundwork. First, let's create our central planning document. Tell me about the vision for what you want to build."*
 
 2.  **Phase 2: DDD Strategy (Architect)**
     * **Action**: Transition the chat to the `Architect` archetype.
-    * **Goal**: Using the completed overview in [overview.md](mdc:docs/overview.md), use the Domain-Driven Design (DDD) Strategy template document from [design.md](mdc:.cursor/templates/design.md) to define the Domain-Driven Design (DDD) Strategy in the [design.md](mdc:docs/design.md) document. This includes the Ubiquitous Language, Bounded Contexts, and Aggregates. The guiding principles & practices for this exercise should be sourced from [practices.mdc](.cursor/rules/practices.mdc).
+    * **Goal**: Using the completed overview in docs/overview.md, use the Domain-Driven Design (DDD) Strategy template document from .cursor/templates/design.md to define the Domain-Driven Design (DDD) Strategy in the docs/design.md document. This includes the Ubiquitous Language, Bounded Contexts, and Aggregates. The guiding principles & practices for this exercise should be sourced from @practices.mdc.
     * **Transition Prompt**: *"Excellent. We have a clear vision. I'll now transition to our architect to design the technical blueprint based on these goals."*
 
 3.  **Phase 3: Initial Backlog (Architect)**
     * **Action**: Continue the chat with the `Architect`.
-    * **Goal**: Using the [backlog.md](mdc:.cursor/templates/backlog.md) template document, populate the backlog in the [backlog.md](mdc:docs/backlog.md) document with bite size tasked derived from `Key Features` from the [overview.md](mdc:docs/overview.md) document. `Key Features` are the epics. Ensure the `Prototype` column exists and is left empty for all new tasks.
+    * **Goal**: Using the .cursor/templates/backlog.md template document, populate the backlog in the docs/backlog.md document with bite size tasked derived from `Key Features` from the docs/overview.md document. `Key Features` are the epics. Ensure the `Prototype` column exists and is left empty for all new tasks.
     * **Prompt**: *"With the architecture defined, let's break down the work. We'll create the initial backlog to guide the first few development cycles."*
 
 5.  **Phase 5: Project & Tooling Scaffolding (Architect)**
     * **Action**: This is an automated step triggered by user confirmation.
     * **Goal**: Create the project skeleton and all essential development tooling.
-    * **Confirmation Prompt**: *"The complete initial plan is now in [overview.md](mdc:docs/overview.md), [design.md](mdc:docs/design.md), and [backlog.md](mdc:docs/backlog.md). I am ready to scaffold the project structure, development tools, and CI workflows. Shall I proceed?"
-    * **Note**: Don't overdo it with scaffolding, and only scaffold what is specifically asked for. When in doubt follow our practices [practices.mdc](.cursor/rules/practices.mdc).
+    * **Confirmation Prompt**: *"The complete initial plan is now in docs/overview.md, docs/design.md, and docs/backlog.md. I am ready to scaffold the project structure, development tools, and CI workflows. Shall I proceed?"
+    * **Note**: Don't overdo it with scaffolding, and only scaffold what is specifically asked for. When in doubt follow our practices @practices.mdc.
     * **Steps**:
-        1.  **`scaffoldBaseDirectories()`**: Create the `api/`, `domain/`, and `infrastructure/` folders/packages as defined in [practices.mdc](mdc:.cursor/rules/practices.mdc) in the conventional source folder for the chosen programming lanaguage.
-        2.  **`scaffoldDomainFromDesign([design.md](mdc:docs/design.md))`**: Create domain files (`aggregates`, `entities`, etc.).
+        1.  **`scaffoldBaseDirectories()`**: Create the `api/`, `domain/`, and `infrastructure/` folders/packages as defined in @practices.mdc in the conventional source folder for the chosen programming lanaguage.
+        2.  **`scaffoldDomainFromDesign(docs/design.md)`**: Create domain files (`aggregates`, `entities`, etc.).
         3.  **`scaffoldTooling("testing")`**: Add a testing framework, a `tests/` directory in the conventional source folder for the chosen programming lanaguage, and a basic test helper (e.g., `jest.config.js`).
         4.  **`scaffoldWorkflow("github-actions")`**: Create a `.github/workflows/` directory with a basic `ci.yml` file that runs build and test **ONLY** `on` `push` to `branches` `main`.
         5.  **`scaffoldDocumentation("README")`**: Create or update the template README file to include a `Setup` (i.e what are & how to install dependencies) and `Usage` section (i.e the basic build, test, run commands) **ONLY**. Keep it simple and professional (no emojis).
         6.  **`scaffoldIgnore(".gitignore")`**: Update .gitignore file with language appropriate entries.
-        7.  **`scaffoldFunctionalCLI()`**: Implement a functional, text-based command-line interface (CLI) that provides direct access to the application's core functions and APIs. This CLI is mandatory for enabling AI-driven manual Quality Assurance and must be implemented regardless of any other user interfaces developed for the project. Follow development practices in [practices.mdc](.cursor/rules/practices.mdc). After code changes are complete, create the CLI's usage documentation in [cli.md](mdc:docs/cli.md) based on the template from [cli.md](mdc:.cursor/templates/cli.md). It will add all commands, parameters, and examples introduced during scaffolding.
+        7.  **`scaffoldFunctionalCLI()`**: Implement a functional, text-based command-line interface (CLI) that provides direct access to the application's core functions and APIs. This CLI is mandatory for enabling AI-driven manual Quality Assurance and must be implemented regardless of any other user interfaces developed for the project. Follow development practices in @practices.mdc. After code changes are complete, create the CLI's usage documentation in docs/cli.md based on the template from .cursor/templates/cli.md. It will add all commands, parameters, and examples introduced during scaffolding.
 
 6.  **Phase 6: Final Review (Architect)**
     * **Action**: Continue the chat with the `Architect`
@@ -47,5 +47,5 @@ This phase engages personas defined in [personas.mdc](.cursor/rules/personas.mdc
 
 7.  **Phase 7: Update Tasks (Architect)**
     * **Action**: Continue the chat with the `Architect`
-    * **Goal**: Update the status of tasks in the [backlog.md](mdc:docs/backlog.md) document in case we inadvertently worked on some of the tasks while Scaffolding. Ensure that if we worked on some tasks and they require manual Quality Insurance that we mark the status appropriately according to our project management practices [practices.mdc](mdc:.cursor/rules/practices.mdc).
-    * **Final Output**: *"Scaffolding complete. Your project is ready for development. Review [backlog.md](mdc:docs/backlog.md) for the backlog and start a `dev` session when you're ready to code"*
+    * **Goal**: Update the status of tasks in the docs/backlog.md document in case we inadvertently worked on some of the tasks while Scaffolding. Ensure that if we worked on some tasks and they require manual Quality Insurance that we mark the status appropriately according to our project management practices @practices.mdc.
+    * **Final Output**: *"Scaffolding complete. Your project is ready for development. Review docs/backlog.md for the backlog and start a `dev` session when you're ready to code"*

@@ -1,18 +1,18 @@
 ---
 alwaysApply: false
-description: A focused session you roleplay as the quality assurance professional archetype to manually validate a specific task from the [backlog.md](mdc:docs/backlog.md) by interacting with the application's text-based command-line interface (CLI).
+description: A focused session you roleplay as the quality assurance professional archetype to manually validate a specific task from the docs/backlog.md by interacting with the application's text-based command-line interface (CLI).
 ---
 ## **Description**
-A focused session you roleplay as the quality assurance professional archetype to manually validate a specific task from the [backlog.md](mdc:docs/backlog.md) by interacting with the application's text-based command-line interface (CLI). Follow testing and QA practices in [practices.mdc](.cursor/rules/practices.mdc).
+A focused session you roleplay as the quality assurance professional archetype to manually validate a specific task from the docs/backlog.md by interacting with the application's text-based command-line interface (CLI). Follow testing and QA practices in @practices.mdc.
 
 ## Persona
-This session engages the Quality Assurance Professional persona defined in [personas.mdc](.cursor/rules/personas.mdc).
+This session engages the Quality Assurance Professional persona defined in @persona.mdc.
 
 ### **Execution Flow**
 
 1.  **Task Selection**
     * **Action**: Select the first 'Ready to Test' task from the backlog.
-    * **Backend Action**: listTasksFrom([backlog.md](mdc:docs/backlog.md), status=["Ready to Test"]).
+    * **Backend Action**: listTasksFrom(docs/backlog.md, status=["Ready to Test"]).
 
 2.  **Engage Quality Assurance Professional Archetype**
     * **Action**: Load the selected task's details (Description, Acceptance Criteria) and engage the Quality Assurance Professional archetype.
@@ -24,9 +24,9 @@ This session engages the Quality Assurance Professional persona defined in [pers
 
 4.  **Record Findings**
     * **Action**: After testing, the AI prompts the user to make a final judgment on the feature's quality based on the CLI output.
-    * **Example Prompt**: "We have tested the core functionality via the CLI. Looks like [case1, case2, case3, ...] passed? If you're okay with the results I can go ahead and update the task in [backlog.md](mdc:docs/backlog.md) to 'Complete'."
+    * **Example Prompt**: "We have tested the core functionality via the CLI. Looks like [case1, case2, case3, ...] passed? If you're okay with the results I can go ahead and update the task in docs/backlog.md to 'Complete'."
 
 5.  **Completion**
     * **Action**: The session concludes when the task status is updated.
     * **Closing Prompt**: "Great. The task status has been updated in [backlog.md]. This feature is now officially validated."
-    Optional Action: updateTaskStatus([backlog.md](mdc:docs/backlog.md), taskId, newStatus).
+    Optional Action: updateTaskStatus(docs/backlog.md, taskId, newStatus).
