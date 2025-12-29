@@ -1,95 +1,128 @@
 ---
-description: This rules files contains the rules of engagement.
+description: Workflow orchestration and development principles for AI-driven software development.
 alwaysApply: true
 ---
-## **Intent-aware behavior**
+## **Intent-Aware Behavior**
+
 ### Purpose
-- Provide a single decision point that translates the latest user intent and current project state into the correct next action. Keep momentum, avoid unnecessary questions, and ensure work flows through Init → Plan → (Prototype) → Dev → Test → Complete.
+Translate user intent and project state into the correct next action. Maintain momentum, minimize questions, and ensure work flows through Init → Plan → (Prototype) → Dev → Test → Complete.
 
-### Inputs considered (ranked)
-1. Explicit user request (e.g., “scaffold”, “add feature”, “prototype”, “implement”, “test”).
+### Inputs Considered (ranked)
+1. Explicit user request (e.g., "scaffold", "add feature", "prototype", "implement", "test")
 2. Project state signals:
-   - Init checks: existence and completeness of `docs/overview.md`, `docs/design.md`, `docs/backlog.md` (see Init idempotency and pre-checks).
-   - Backlog status distribution: presence of `In Progress`, `Ready to Test`, and top‑priority `TODO`.
-   - Prototype linkage: `Prototype` column entries for tasks.
-   - Build/test health when applicable.
-3. Recently modified files and open editor context.
+   - Init checks: existence/completeness of `docs/overview.md`, `docs/design.md`, `docs/backlog.md`
+   - Backlog status: presence of `In Progress`, `Ready to Test`, top-priority `TODO`
+   - Prototype linkage: `Prototype` column entries for tasks
+   - Build/test health
+3. Recently modified files and open editor context
 
-### Phase selection (decision tree)
-Follow the first matching rule below:
-- Test: If the user asks to validate/QA, or there is at least one `Ready to Test` task and no higher‑priority blocking work.
-- Fix/Finish current work: If there is an `In Progress` task, continue with Dev to finish it before starting anything else.
-- Dev: If the user asks to implement/build/refactor a defined task, or the top backlog item is `TODO` and ready to start.
-- Prototype: If the user expresses uncertainty, feasibility/risk concerns, or a selected `TODO` task is high‑risk with empty `Prototype` column.
-- Plan: If the user asks to add/change features, priorities, or design strategy; or Init is complete but the backlog/strategy needs refinement.
-- Init: If the project is not initialized (Init checks fail) or the user explicitly asks to scaffold/init a new project.
+### Phase Selection (decision tree)
+Follow the first matching rule:
+- **Test**: User asks to validate/QA, or there's a `Ready to Test` task with no higher-priority blocking work. Invoke `.cursor/rules/test.mdc`.
+- **Fix/Finish**: There's an `In Progress` task—continue Dev to finish before starting anything else. Invoke `.cursor/rules/dev.mdc`.
+- **Dev**: User asks to implement/build/refactor, or top backlog item is `TODO` and ready. Invoke `.cursor/rules/dev.mdc`.
+- **Prototype**: User expresses uncertainty/risk, or a `TODO` task is high-risk with empty `Prototype` column. Invoke `.cursor/rules/prototype.mdc`.
+- **Plan**: User asks to add/change features or design; or Init complete but backlog needs refinement. Invoke `.cursor/rules/plan.mdc`.
+- **Init**: Project not initialized (checks fail) or user explicitly asks to scaffold. Invoke `.cursor/rules/init.mdc`.
 
-If multiple rules match, resolve by priority: Test > Finish `In Progress` > Fix broken build > Dev > Prototype > Plan > Init.
+**Priority resolution**: Test > Finish In Progress > Fix broken build > Dev > Prototype > Plan > Init
 
-### Entry/exit expectations per phase
-- Init (one‑time): Create `docs/overview.md`, `docs/design.md`, `docs/backlog.md`. Do not re‑run if checks pass; instead move to Plan.
-- Plan: Update overview/design/backlog. Ensure `Prototype` column exists and leave it empty for new tasks.
-- Prototype: Create `prototypes/[feature-or-task-slug].[ext]`; record its path + short findings in the task’s `Prototype` column; do not change task `Status`.
-- Dev: Implement the highest‑priority eligible task. Maintain and document the CLI in `docs/cli.md`. When code for a task is complete, move it to `Ready to Test`.
-- Test: Validate via CLI. If acceptance criteria pass, set task to `Complete`; otherwise return it to Dev with concise notes.
+### Clarification Policy
+- Prefer action over questions. Ask at most one clarifying question only when the phase cannot be safely inferred.
+- Do not ask to proceed for safe, read-only, or obviously incremental actions.
+- Do ask once before: project scaffolding, mass file generation, deletions/migrations, long-running commands.
 
-### Clarifications & confirmation policy
-- Prefer action over questions. Ask at most one clarifying question only when the intended phase cannot be safely inferred.
-- Do not ask to proceed for safe, read‑only, or obviously incremental actions.
-- Do ask once before potentially disruptive actions: project scaffolding, mass file generation, deletions/migrations, long‑running commands.
-
-### Handling ambiguity
-- Propose a default next action with reasoning and proceed after a short wait for objections. If no objection, execute the default.
-- When intent mixes phases (e.g., “add feature and build it”), sequence: Plan → (Prototype if risky) → Dev → Test.
-
-### Guardrails
-- Idempotency: Never re‑run Init if Init checks pass. Never overwrite existing docs; perform additive, diff‑aware edits.
-- Single WIP: Only one `In Progress` task at a time, always the highest‑priority eligible item.
-- Minimalism: Prefer the smallest change that moves the task forward; avoid speculative scaffolding/dependencies.
-- Source layout: Maintain `domain/`, `infrastructure/`, `api/` structure and a single wiring entrypoint as defined below.
-
-### Autonomy & status updates
-- Provide a brief status update describing what just happened and what will happen next; then execute.
-- After substantive edits, run build/tests where applicable and fix failures before declaring the phase complete.
-- Keep `docs/cli.md` current whenever CLI‑visible behavior changes.
+### Handling Ambiguity
+- Propose a default next action with reasoning and proceed after brief pause for objections.
+- When intent mixes phases (e.g., "add feature and build it"), sequence: Plan → (Prototype if risky) → Dev → Test.
 
 ## **Flow**
+
 ### Phases
-- Init: Create `docs/overview.md`, `docs/design.md`, and seed `docs/backlog.md` from templates.
-- Plan: Add/refine features and tasks; keep `docs/backlog.md` prioritized and complete.
-- Prototype (optional): Run focused experiments to de‑risk a TODO task before dev. Writes findings to the task’s `Prototype` column in `docs/backlog.md`.
-- Dev: Implement the highest‑priority task, leveraging any prototype guidance.
-- Test: Validate tasks marked `Ready to Test`; accept or send back with notes.
-- Complete: Close out tasks that pass testing.
+- **Init**: Create `docs/overview.md`, `docs/design.md`, seed `docs/backlog.md` from templates. See `.cursor/rules/init.mdc`.
+- **Plan**: Add/refine features and tasks; keep backlog prioritized. See `.cursor/rules/plan.mdc`.
+- **Prototype** (optional): De-risk a TODO task before dev; write findings to `Prototype` column. See `.cursor/rules/prototype.mdc`.
+- **Dev**: Implement highest-priority task, update `docs/testability.md` with verification method. See `.cursor/rules/dev.mdc`.
+- **Test**: Validate `Ready to Test` tasks via shell; accept or return with notes. See `.cursor/rules/test.mdc`.
+- **Complete**: Close tasks that pass testing.
 
-### Primary flows
+### Primary Flows
 - New project: Init → Plan → (Prototype) → Dev → Test → Complete
-- New/changed feature after init: Plan → (Prototype) → Dev → Test → Complete
-- Spike-only learning (no immediate build): Plan → Prototype → Plan update
+- New feature after init: Plan → (Prototype) → Dev → Test → Complete
+- Spike-only learning: Plan → Prototype → Plan update
 
-### Init idempotency and pre-checks
-- Init is run only once per project. Do not re-run Init if the project has already been initialized.
-- Before running Init, check the following conditions:
-  - `docs/overview.md` exists and its header has a real project name (i.e., it does not contain `[Project Name]`).
-  - `docs/design.md` exists.
-  - `docs/backlog.md` exists.
-  - Optional but indicative: source folders and CI workflow created during scaffolding exist (e.g., language-appropriate `src/` with `api/`, `domain/`, `infrastructure/`; `.github/workflows/ci.yml`).
-- If all checks pass, consider Init complete. Use Plan to refine documents and backlog instead of re-running Init.
-- If checks partially pass, do not overwrite existing docs; run Plan to fill in gaps, or selectively scaffold only the missing pieces.
+### Init Idempotency
+Init runs once. Before running, check:
+- `docs/overview.md` exists with real project name (not `[Project Name]`)
+- `docs/design.md` exists
+- `docs/backlog.md` exists
+- Optional: source folders and CI workflow exist
 
-### Status progression (per task)
-- Must follow: `TODO` → `In Progress` → `Ready to Test` → `Complete`.
-- Only one `In Progress` task at a time; always the highest‑priority eligible item.
-- Prototype does not change `Status`; it only updates the `Prototype` column.
+If checks pass, Init is complete—use Plan to refine. If partial, fill gaps without overwriting.
 
-### Prototype integration
-- Intake: Accept a specific backlog task in `TODO` with an empty `Prototype` column.
-- Output: Create `prototypes/[feature-or-task-slug].[ext]` and write its path plus short notes to the task’s `Prototype` column in `docs/backlog.md`.
-- Usage in Dev: Consult the task’s `Prototype` column for guidance.
+### Status Progression
+Tasks follow: `TODO` → `In Progress` → `Ready to Test` → `Complete`
+- Only one `In Progress` task at a time (highest-priority eligible)
+- Prototype does not change `Status`; only updates `Prototype` column
 
-### Artifacts by phase
-- Init: `docs/overview.md`, `docs/design.md`, `docs/backlog.md`
-- Plan: `docs/overview.md`, `docs/design.md`, `docs/backlog.md`
-- Prototype: `prototypes/*`, `docs/backlog.md` (Prototype column updates)
-- Dev: source code, `docs/cli.md` kept current with CLI usage
-- Test: test artifacts/results; update `docs/backlog.md` statuses
+### Prototype Integration
+- **Intake**: Task in `TODO` with empty `Prototype` column
+- **Output**: `prototypes/[slug].[ext]` + notes in task's `Prototype` column
+- **Usage**: Dev consults `Prototype` column for guidance
+
+## **Guardrails**
+- **Idempotency**: Never re-run Init if checks pass. Never overwrite docs; make additive, diff-aware edits.
+- **Single WIP**: One `In Progress` task at a time.
+- **Minimalism**: Smallest change that moves task forward; avoid speculative scaffolding.
+- **Testability**: Every feature must have a documented verification method in `docs/testability.md`.
+
+## **Autonomy & Updates**
+- Provide brief status update (what happened, what's next), then execute.
+- After substantive edits, run build/tests and fix failures before declaring phase complete.
+- Keep `docs/testability.md` current when verification methods change.
+
+---
+
+## **Design Practices**
+
+### Ubiquitous Language
+- Build a shared glossary with domain experts for all business concepts.
+- Use it everywhere: meetings, diagrams, documentation, code (class names, methods, variables).
+- Challenge ambiguity—different usage signals unclear domain modeling.
+
+### Bounded Contexts
+- Map high-level boundaries around business areas (Sales, Shipping, Billing).
+- Embrace separate models: "Product" in Sales ≠ "Product" in Shipping.
+- Use Anti-Corruption Layer (ACL) to prevent foreign models from leaking in.
+
+### Modeling Priorities
+- **Core Domain**: Competitive advantage—focus intensive design here.
+- **Supporting Subdomains**: Non-competitive areas get simpler models.
+- **Generic Subdomains**: Buy, don't build (auth, email, etc.).
+
+### Aggregates
+- Enforce business invariants through Aggregate Roots.
+- All modifications go through the root—no uncontrolled changes.
+- Keep aggregates small: smallest cluster needed for transactional rules.
+
+### Source Layout
+Divide source into three packages (in language-conventional location, not repo root):
+- **`domain/`**: Core definitions. Logic acceptable, but never reference infrastructure.
+- **`infrastructure/`**: Concrete repositories and DDD implementations.
+- **`api/`**: Orchestration and entry points. Use interfaces, not infrastructure directly.
+
+All wiring in a single entrypoint file.
+
+---
+
+## **Development Practices**
+
+### Dependency Hygiene
+- Use latest stable versions.
+- Add dependencies only for substantial, immediate benefit.
+- Avoid dependencies for minor functionality achievable with reasonable custom code.
+
+### Minimalist Code
+- **Clarity over complexity**: Readable first; complexity only when required.
+- **Sensible defaults**: Reduce boilerplate with accepted conventions.
+- **Necessary code only**: Don't generate what isn't immediately needed.

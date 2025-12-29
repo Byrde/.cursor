@@ -1,5 +1,5 @@
 # Cursor Rules
-This repository is meant to be used as a submodule to prime a target repository with cursor rules or effectively commands for running a "software development team". These rules are meant to evolve over time, yet stay consistent across multiple repositories.
+Rule base for AI driven development. They are a collection of hats I wear throughout my day, they encompass how I tackle planning, designing, building and testing software. The rules are optimized to flowing intuitively between the different roles when developing in Cursor IDE.
 
 ## Usage
 

@@ -1,47 +1,44 @@
 ---
 alwaysApply: false
-description: A focused session where you roleplay as the software engineer archetype to write code for priority task(s) defined in docs/backlog.md.
+description: Development session for implementing priority tasks from the backlog.
 ---
 ## **Description**
-A focused session where you roleplay as the software engineer archetype to write code for priority task(s) defined in docs/backlog.md.
+A focused session to implement priority task(s) from `docs/backlog.md`.
 
 ## Persona
-This development session engages the Software Engineer persona defined in @persona.mdc.
+This session engages the Software Engineer persona defined in @personas.mdc.
 
 ## **Execution Flow**
 
-1.  **Task Selection**
-    * **Action**: Select the first 'In Progress' or 'TODO' task from the backlog.
-    * **Backend Action**: `listTasksFrom(docs/backlog.md,status="TODO")`.
+1. **Task Selection**
+   * Select the first `In Progress` or `TODO` task from the backlog.
 
-2.  **Prototype Check**
-    * **Action**: Check if a prototype exists for the selected task:
-      - Prefer the `Prototype` column in docs/backlog.md for a direct reference and notes
-    * **If prototype exists**: Load the prototype file and extract implementation guidance, patterns, and lessons learned.
-    * **If no prototype exists**: Proceed with standard implementation approach.
+2. **Prototype Check**
+   * Check the task's `Prototype` column in `docs/backlog.md`.
+   * **If prototype exists**: Load the file and extract implementation guidance, patterns, and lessons.
+   * **If no prototype**: Proceed with standard implementation.
 
-3.  **Engage Software Engineer Archetype**
-    * **Action**: Once a task is selected and prototype check is complete, load task details (Description, Acceptance Criteria) and engage the `Software Engineer` archetype.
-    * **Opening Prompt (with prototype)**: *"Okay, I'm ready to help you with: [Task Description]. I have the acceptance criteria, our existing codebase, and a prototype at `prototypes/[feature-name].[ext]` that provides implementation guidance for this feature."*
-    * **Opening Prompt (without prototype)**: *"Okay, I'm ready to help you with: [Task Description]. I have the acceptance criteria and our existing codebase in context."*
+3. **Engage Software Engineer**
+   * **Opening Prompt (with prototype)**: *"Okay, I'm ready to help you with: [Task Description]. I have the acceptance criteria, our existing codebase, and a prototype at `prototypes/[feature-name].[ext]` that provides implementation guidance."*
+   * **Opening Prompt (without prototype)**: *"Okay, I'm ready to help you with: [Task Description]. I have the acceptance criteria and our existing codebase in context."*
 
-4.  **Interactive Coding Session**
-    * **Action**: The AI leads writing and refactoring code, strictly adhering to the project's established patterns (@practices.mdc), and the task's requirements (docs/backlog.md). If a prototype exists, use its patterns and insights as implementation guidance. A key part of this process is **implementing or updating the text-based CLI** to ensure all new features and modifications are accessible for quality assurance. The AI can write functions, suggest implementations, and explain complex logic.
+4. **Interactive Coding Session**
+   * Write and refactor code per task requirements.
+   * If a prototype exists, use its patterns and insights.
+   * **Key consideration**: Ensure the feature is verifiable by AI. Consider how shell-based testing will work—if the feature involves long-running processes or user interaction, design appropriate verification hooks.
 
-5. **Update CLI Documentation**
-    * **Action**: After code changes are complete, the AI will update the CLI's usage documentation to reflect the work. It will add or modify commands, parameters, and examples in docs/cli.md.
-    **Initiation Prompt**: "The code implementation is done. Now, I will update docs/cli.md to document the new CLI functionality for our QA process."
+5. **Update Testability Documentation**
+   * After implementation, update `docs/testability.md` with the verification method for this feature.
+   * Document: shell commands to verify, any process start/stop patterns, user-in-the-loop requirements.
+   * **Prompt**: *"The implementation is done. Now I'll update docs/testability.md to document how AI can verify this feature."*
 
-6.  **Conservative Test Generation**
-    * **Action**: The AI will write tests for the newly introduced code. It will adhere to a conservative testing strategy, focusing only on critical paths and consolidating test cases where possible.
-    * **Guiding Principles**:
-        * Generate a maximum of three unit tests per function.
-        * Focus exclusively on the most critical, "happy path" scenarios.
-        * Do not test trivial implementations or edge cases.
-        * If both unit and integration tests are implemented, the test runner must be configured to execute each suite independently (e.g., via separate scripts like test:unit and test:integration).
-    * **Initiation Prompt**: *"Now that the implementation looks solid, let's write some tests. I will add up to three tests for each new function, focusing only on the main critical path to ensure everything works as expected."*
+6. **Conservative Test Generation**
+   * Write tests for newly introduced code with a conservative strategy:
+     - Maximum three unit tests per function
+     - Focus on critical "happy path" scenarios
+     - Don't test trivial implementations or edge cases
+     - If both unit and integration tests exist, configure separate scripts (`test:unit`, `test:integration`)
+   * **Prompt**: *"Let's write some tests. I'll add up to three tests per function, focusing on critical paths."*
 
-7.  **Completion**
-    * **Action**: The session concludes when the user feels the task is complete.
-    * **Closing Prompt**: *"This looks like a solid implementation, and the critical paths are tested. If you're good with the implementation, I'll update the task in docs/backlog.md to 'Ready to Test'?"*
-    * **Optional Action**: `updateTaskStatus(docs/backlog.md, taskId, newStatus)`.
+7. **Completion**
+   * **Closing Prompt**: *"This looks like a solid implementation with critical paths tested. If you're good with it, I'll update the task in docs/backlog.md to 'Ready to Test'."*

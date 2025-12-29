@@ -1,32 +1,43 @@
 ---
 alwaysApply: false
-description: A focused session you roleplay as the quality assurance professional archetype to manually validate a specific task from the docs/backlog.md by interacting with the application's text-based command-line interface (CLI).
+description: QA session to validate tasks via shell-based verification.
 ---
 ## **Description**
-A focused session you roleplay as the quality assurance professional archetype to manually validate a specific task from the docs/backlog.md by interacting with the application's text-based command-line interface (CLI). Follow testing and QA practices in @practices.mdc.
+A focused session to validate `Ready to Test` tasks by executing shell commands and evaluating output per the verification methods documented in `docs/testability.md`.
 
 ## Persona
-This session engages the Quality Assurance Professional persona defined in @persona.mdc.
+This session engages the Quality Assurance Professional persona defined in @personas.mdc.
 
-### **Execution Flow**
+## **Execution Flow**
 
-1.  **Task Selection**
-    * **Action**: Select the first 'Ready to Test' task from the backlog.
-    * **Backend Action**: listTasksFrom(docs/backlog.md, status=["Ready to Test"]).
+1. **Task Selection**
+   * Select the first `Ready to Test` task from the backlog.
 
-2.  **Engage Quality Assurance Professional Archetype**
-    * **Action**: Load the selected task's details (Description, Acceptance Criteria) and engage the Quality Assurance Professional archetype.
-    * **Opening Prompt**: "Okay, I'm ready to help you validate: [Task Description]. I have the acceptance criteria in context. I'll start testing using the CLI."
+2. **Load Verification Method**
+   * Consult `docs/testability.md` for the documented verification approach for this feature.
+   * Identify: shell commands, process handling requirements, user-in-the-loop scenarios.
 
-3.  **Interactive QA Session**
-    * **Action**: The AI guides the manual testing process. It proposes validation steps based on the acceptance criteria and autonomously executes specific CLI commands to validate the acceptance criteria. The focus is on verifying the critical "happy path" functionality and ensuring the output is correct.
-    * **Example Prompt**: "To verify the acceptance criterion '[Criterion 1]', we need to see if the application can [expected outcome]. Let's run the following command to test this: your-app-cli [command] --parameter [value]"
+3. **Engage Quality Assurance Professional**
+   * **Opening Prompt**: *"I'm ready to validate: [Task Description]. I have the acceptance criteria and verification method in context. I'll test using shell commands."*
 
-4.  **Record Findings**
-    * **Action**: After testing, the AI prompts the user to make a final judgment on the feature's quality based on the CLI output.
-    * **Example Prompt**: "We have tested the core functionality via the CLI. Looks like [case1, case2, case3, ...] passed? If you're okay with the results I can go ahead and update the task in docs/backlog.md to 'Complete'."
+4. **Interactive QA Session**
+   * Execute verification steps based on acceptance criteria and `docs/testability.md`.
+   * **For standard commands**: Execute and evaluate output.
+   * **For long-running processes**: Use documented start/verify/stop pattern (timeouts, health checks, bounded waits).
+   * **For user-in-the-loop scenarios**: Set up preconditions, clearly state what user action is required, then verify postconditions after user confirms completion.
+   * **Example Prompt**: *"To verify '[Criterion]', I'll run: `[command]`. Expected outcome: [description]."*
 
-5.  **Completion**
-    * **Action**: The session concludes when the task status is updated.
-    * **Closing Prompt**: "Great. The task status has been updated in [backlog.md]. This feature is now officially validated."
-    Optional Action: updateTaskStatus(docs/backlog.md, taskId, newStatus).
+5. **Handle User-in-the-Loop Tests**
+   * When a test requires user action:
+     1. Execute setup commands
+     2. **Handoff Prompt**: *"I've set up the test environment. Please [specific user action]. Let me know when complete and I'll verify the result."*
+     3. After user confirms, execute verification commands
+   * Document any issues with the handoff process in findings.
+
+6. **Record Findings**
+   * **Prompt**: *"Testing complete. Results: [case1: pass/fail, case2: pass/fail, ...]. If you're satisfied, I'll update the task to 'Complete'."*
+
+7. **Completion**
+   * Update task status based on results.
+   * **If passed**: *"Task status updated to 'Complete'. This feature is validated."*
+   * **If failed**: Return to Dev with specific notes on what failed and how.

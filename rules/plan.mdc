@@ -1,34 +1,41 @@
 ---
 alwaysApply: false
-description: Engages the Project Manager and Architect to update the project overview in docs/overview.md, to add or update the Domain Driven Design Strategy in docs/design.md, to refine the backlog in docs/backlog.md.
+description: Planning session to add or refine features in overview, design, and backlog.
 ---
 ## **Description**
-Engages the Project Manager and Architect to update the project overview in docs/overview.md, to add or update the Domain Driven Design Strategy in docs/design.md, to refine the backlog in docs/backlog.md. Follow practices defined in @practices.mdc.
+Engages Project Manager and Architect to update `docs/overview.md`, `docs/design.md`, and `docs/backlog.md`.
 
 ## Personas
-This planning phase engages personas defined in @persona.mdc:
+This phase engages personas defined in @personas.mdc:
 - Project Manager
 - Architect
 
 ## **Execution Flow**
 
-1.  **Initiate Planning Session (Project Manager)**
-    * **Action**: Engage the `Project Manager` archetype in a chat.
-    * **Goal**: Understand the new feature or enhancement the user wants to add.
-    * **Opening Prompt**: *"Let's plan a new feature. Could you describe the enhancement or new functionality you'd like to add to the project?"*
+1. **Initiate Planning Session (Project Manager)**
+   * **Goal**: Understand the new feature or enhancement.
+   * **Opening Prompt**: *"Let's plan a new feature. Could you describe the enhancement or functionality you'd like to add?"*
 
-2.  **Update Project Overview (Project Manager)**
-    * ***Action**: Collaboratively update the docs/overview.md document, particularly adding to the `Key Features` list. Pay close attention to how you fill out `Key Features` since they will be used as the epics for the tasks in the backlog.
+2. **Update Project Overview (Project Manager)**
+   * Update `docs/overview.md`, particularly adding to `Key Features`.
+   * **Note**: `Key Features` become epics for backlog tasks—be precise.
 
-3.  **Refine Architecture (Architect)**
-    * **Action**: Transition to the `Architect` archetype.
-    * **Goal**: Determine if the new feature requires changes to the DDD strategy (e.g., a new Bounded Context, a new Aggregate, or changes to an existing one). Update the Domain Driven Design Strategy docs/design.md document if necessary.
-    * **Prompt**: *"Let's analyze the architectural impact of this new feature. I'll review our current DDD moee what needs to be added or changed."*
+3. **Refine Architecture (Architect)**
+   * **Goal**: Determine if the feature requires DDD strategy changes (new Bounded Context, Aggregate, etc.). Update `docs/design.md` if needed.
+   * **Prompt**: *"Let's analyze the architectural impact. I'll review our current DDD model and identify what needs to change."*
 
-4.  **Add to Backlog (Architect)**
-    * **Action**: Continue with the `Architect`
-    * **Goal**: Break down the new feature into specific, bite sized actionable tasks derived from `Key Features` from the docs/overview.md document and add them to the backlog in docs/backlog.md. `Key Features` are the epics. Ensure the backlog table includes the `Prototype` column and leave it empty for newly added tasks.
-    * **Prompt**: *"Now, let's create the specific tasks for the development team. What are the key acceptance criteria for this new feature?"*
+4. **Add to Backlog (Architect)**
+   * Break down the feature into bite-sized tasks derived from `Key Features` (epics).
+   * Add to `docs/backlog.md` with:
+     - Clear acceptance criteria
+     - `Prototype` column (empty for new tasks)
+     - Testability considerations in `Notes` column if non-trivial verification is needed
+   * **Prompt**: *"Now let's create specific tasks. What are the key acceptance criteria for this feature?"*
 
-5.  **Completion**
-    * **Final Output**: *"All files have been updated with the new feature and their associated tasks."*
+5. **Consider Testability (Architect)**
+   * For each new task, briefly consider: How will AI verify this feature?
+   * If verification involves long-running processes or user interaction, note it in the `Notes` column.
+   * Update `docs/testability.md` with any new verification patterns needed.
+
+6. **Completion**
+   * **Final Output**: *"Planning complete. Overview, design, and backlog updated with the new feature and tasks."*
