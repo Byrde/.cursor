@@ -2,6 +2,16 @@
 alwaysApply: false
 description: QA session to validate tasks via shell-based verification.
 ---
+## **Activation Announcement**
+When this rule is engaged, output the following banner before proceeding:
+```
+----------------------------------------------------------------------
+[PHASE: TEST] QA session active.
+Engaging: Quality Assurance Professional persona.
+Purpose: Validate tasks via shell-based verification.
+----------------------------------------------------------------------
+```
+
 ## **Description**
 A focused session to validate `Ready to Test` tasks by executing shell commands and evaluating output per the verification methods documented in `docs/testability.md`.
 

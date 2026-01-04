@@ -2,6 +2,16 @@
 alwaysApply: false
 description: Development session for implementing priority tasks from the backlog.
 ---
+## **Activation Announcement**
+When this rule is engaged, output the following banner before proceeding:
+```
+----------------------------------------------------------------------
+[PHASE: DEV] Development session active.
+Engaging: Software Engineer persona.
+Purpose: Implement priority task(s) from backlog.
+----------------------------------------------------------------------
+```
+
 ## **Description**
 A focused session to implement priority task(s) from `docs/backlog.md`.
 

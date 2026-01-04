@@ -2,6 +2,16 @@
 alwaysApply: false
 description: Planning session to add or refine features in overview, design, and backlog.
 ---
+## **Activation Announcement**
+When this rule is engaged, output the following banner before proceeding:
+```
+----------------------------------------------------------------------
+[PHASE: PLAN] Planning session active.
+Engaging: Project Manager and Architect personas.
+Purpose: Add or refine features in overview, design, and backlog.
+----------------------------------------------------------------------
+```
+
 ## **Description**
 Engages Project Manager and Architect to update `docs/overview.md`, `docs/design.md`, and `docs/backlog.md`.
 

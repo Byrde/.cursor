@@ -2,6 +2,16 @@
 alwaysApply: false
 description: One-time project setup covering planning, architecture, and scaffolding.
 ---
+## **Activation Announcement**
+When this rule is engaged, output the following banner before proceeding:
+```
+----------------------------------------------------------------------
+[PHASE: INIT] Project initialization active.
+Engaging: Project Manager and Architect personas.
+Purpose: One-time project setup, planning, and scaffolding.
+----------------------------------------------------------------------
+```
+
 ## **Description**
 One-time project setup covering initial planning, architectural design, and scaffolding of the codebase and tooling.
 

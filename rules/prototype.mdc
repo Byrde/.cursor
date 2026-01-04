@@ -2,6 +2,16 @@
 alwaysApply: false
 description: Exploration session to validate technical feasibility through throwaway implementation.
 ---
+## **Activation Announcement**
+When this rule is engaged, output the following banner before proceeding:
+```
+----------------------------------------------------------------------
+[PHASE: PROTOTYPE] Prototyping session active.
+Engaging: Prototype Engineer persona.
+Purpose: Validate technical feasibility through throwaway implementation.
+----------------------------------------------------------------------
+```
+
 ## **Description**
 A focused session to rapidly validate technical feasibility, UX concepts, or architectural assumptions through throwaway implementation. Slots between Plan and Dev to reduce risk and provide concrete learning.
 
