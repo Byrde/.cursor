@@ -9,6 +9,10 @@ When this rule is engaged, output the following banner before proceeding:
 [PHASE: INIT] Project initialization active.
 Engaging: Project Manager and Architect personas.
 Purpose: One-time project setup, planning, and scaffolding.
+Rule Files:
+  - .cursor/rules/init.mdc (this phase)
+  - .cursor/rules/personas.mdc (persona definitions)
+Note: This session must adhere to the guidelines defined in the rule files above.
 ----------------------------------------------------------------------
 ```
 

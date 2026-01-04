@@ -9,6 +9,10 @@ When this rule is engaged, output the following banner before proceeding:
 [PHASE: DEV] Development session active.
 Engaging: Software Engineer persona.
 Purpose: Implement priority task(s) from backlog.
+Rule Files:
+  - .cursor/rules/dev.mdc (this phase)
+  - .cursor/rules/personas.mdc (persona definitions)
+Note: This session must adhere to the guidelines defined in the rule files above.
 ----------------------------------------------------------------------
 ```
 

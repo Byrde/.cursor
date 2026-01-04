@@ -9,6 +9,10 @@ When this rule is engaged, output the following banner before proceeding:
 [PHASE: PROTOTYPE] Prototyping session active.
 Engaging: Prototype Engineer persona.
 Purpose: Validate technical feasibility through throwaway implementation.
+Rule Files:
+  - .cursor/rules/prototype.mdc (this phase)
+  - .cursor/rules/personas.mdc (persona definitions)
+Note: This session must adhere to the guidelines defined in the rule files above.
 ----------------------------------------------------------------------
 ```
 

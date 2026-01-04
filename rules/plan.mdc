@@ -9,6 +9,10 @@ When this rule is engaged, output the following banner before proceeding:
 [PHASE: PLAN] Planning session active.
 Engaging: Project Manager and Architect personas.
 Purpose: Add or refine features in overview, design, and backlog.
+Rule Files:
+  - .cursor/rules/plan.mdc (this phase)
+  - .cursor/rules/personas.mdc (persona definitions)
+Note: This session must adhere to the guidelines defined in the rule files above.
 ----------------------------------------------------------------------
 ```
 

@@ -9,6 +9,10 @@ When this rule is engaged, output the following banner before proceeding:
 [PHASE: TEST] QA session active.
 Engaging: Quality Assurance Professional persona.
 Purpose: Validate tasks via shell-based verification.
+Rule Files:
+  - .cursor/rules/test.mdc (this phase)
+  - .cursor/rules/personas.mdc (persona definitions)
+Note: This session must adhere to the guidelines defined in the rule files above.
 ----------------------------------------------------------------------
 ```
 

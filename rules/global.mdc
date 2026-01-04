@@ -9,9 +9,13 @@ When workflow orchestration determines the next phase, output the following bann
 [ORCHESTRATOR: GLOBAL] Workflow orchestration active.
 Evaluated: User intent and project state.
 Selected Phase: [PHASE_NAME] - [BRIEF_REASON]
+Rule Files:
+  - .cursor/rules/global.mdc (orchestration, always active)
+  - .cursor/rules/[PHASE].mdc (selected phase)
+Note: The following phase must adhere to the guidelines defined in the rule files above.
 ----------------------------------------------------------------------
 ```
-Replace `[PHASE_NAME]` with the selected phase (Init/Plan/Prototype/Dev/Test) and `[BRIEF_REASON]` with the primary signal that triggered selection (e.g., "user requested implementation", "Ready to Test task found", "project not initialized").
+Replace `[PHASE_NAME]` with the selected phase (Init/Plan/Prototype/Dev/Test), `[BRIEF_REASON]` with the primary signal that triggered selection, and `[PHASE]` with the lowercase phase name (init/plan/prototype/dev/test).
 
 ## **Banner Display Rules**
 These rules are mandatory and apply to all phase rules and persona definitions:
