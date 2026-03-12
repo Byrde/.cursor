@@ -58,18 +58,31 @@ All wiring in a single entrypoint file.
    * Read `docs/design.md`, `docs/backlog.md`, and the existing codebase structure.
    * Identify the target task (provided in the task prompt).
 
-2. **Analyze Architectural Impact**
+2. **Explore the Codebase**
+   * Actively scan the source tree — don't rely on docs alone.
+   * Produce a **File Manifest**: every file relevant to the task, grouped by role:
+     - **Must modify** — files that need direct changes.
+     - **Must read** — files the developer needs to understand for context (interfaces, shared types, related logic).
+     - **Candidate for reuse** — existing code that already solves part of the problem.
+   * For each file, include a one-line rationale explaining why it's listed.
+
+3. **Analyze Architectural Impact**
    * Which bounded contexts does this task touch?
    * Are new aggregates, entities, or value objects needed?
    * Does the ubiquitous language need new terms?
-   * What existing code will be modified?
 
-3. **Design the Approach**
+4. **Assess Reuse & Simplification**
+   * **Reuse as-is** — Identify existing abstractions, utilities, or patterns that already cover part of the task. Cite the specific file and construct.
+   * **Redesign for reuse** — Spot code that is close to reusable but needs a small refactor (extract interface, generalize a parameter, move to shared location). Describe the refactor and the payoff.
+   * **Simplify** — Flag over-engineered or duplicated code in the affected area that the task gives us a natural opportunity to clean up. Only recommend simplifications that reduce the total cost of the task, not drive-by cleanups.
+
+5. **Design the Approach**
    * Define the technical plan: files to create or modify, patterns to apply, interfaces to introduce.
+   * Incorporate the reuse and simplification findings — the plan should take the most efficient path, not the most obvious one.
    * Update `docs/design.md` if the task introduces new bounded contexts, aggregates, or architectural patterns.
    * Refine the task's acceptance criteria in `docs/backlog.md` if the design reveals gaps.
 
-4. **Assess Architectural Risk**
+6. **Assess Architectural Risk**
    * Flag decisions that carry significant risk:
      - New patterns not yet established in the codebase
      - Changes that cross bounded context boundaries
@@ -77,11 +90,12 @@ All wiring in a single entrypoint file.
      - Breaking changes to existing interfaces
    * Classify each as **risky** (needs user input) or **safe** (proceed to dev).
 
-5. **Produce Design Brief**
+7. **Produce Design Brief**
    * Write a concise technical brief for the developer:
      - What to build and where (files, modules, layers)
      - Patterns and interfaces to follow
      - Constraints and invariants to preserve
+     - What to reuse and what to refactor for reuse
      - How to verify the implementation
 
 ---
@@ -90,8 +104,10 @@ All wiring in a single entrypoint file.
 
 Return a structured summary to the orchestrator:
 
-1. **Design Brief** — Concise technical plan for the developer.
-2. **Design Doc Updates** — Changes made to `docs/design.md`, if any.
-3. **Backlog Refinements** — Changes made to task acceptance criteria or notes.
-4. **Risky Decisions** — List of architectural decisions that require user input, with options and trade-offs for each. Empty list if none.
-5. **Testability Updates** — Verification approach for this task, added to `docs/testability.md`.
+1. **File Manifest** — Categorized list of every relevant file (must modify / must read / reuse candidate) with one-line rationales.
+2. **Reuse & Simplification** — Concrete recommendations: what to reuse as-is, what to refactor for reuse, what to simplify. Empty section if none.
+3. **Design Brief** — Concise technical plan for the developer, incorporating the efficient path identified above.
+4. **Design Doc Updates** — Changes made to `docs/design.md`, if any.
+5. **Backlog Refinements** — Changes made to task acceptance criteria or notes.
+6. **Risky Decisions** — List of architectural decisions that require user input, with options and trade-offs for each. Empty list if none.
+7. **Testability Updates** — Verification approach for this task, added to `docs/testability.md`.

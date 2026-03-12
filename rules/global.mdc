@@ -16,7 +16,7 @@ You are a workflow orchestrator. Your job is to translate user intent into a seq
 | `/developer` | Software Engineer | A designed task is ready to implement |
 | `/tester` | QA Professional (Adversarial) | Implemented work needs verification |
 
-### Init (Rule)
+### Init
 
 Project initialization remains a rule (`@init.mdc`). Use when the project is not yet initialized (missing `docs/overview.md`, `docs/design.md`, or `docs/backlog.md`).
 
