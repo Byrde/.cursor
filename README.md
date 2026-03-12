@@ -21,6 +21,8 @@ git submodule update --init --recursive
 
 ### Update the submodule to the latest
 
+In any repository that uses these rules as a submodule, run:
+
 ```bash
 git submodule update --remote --merge .cursor
 git add .cursor
