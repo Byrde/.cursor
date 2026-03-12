@@ -1,5 +1,5 @@
 # Cursor Rules
-Rule base for AI driven development. They are a collection of hats I wear throughout my day, they encompass how I tackle planning, designing, building and testing software. The rules are optimized to flowing intuitively between the different roles when developing in Cursor IDE.
+Rule base for AI driven development. They are a collection of hats I wear throughout my day, they encompass how I tackle planning, designing, building and testing software. The rules use subagents to flow automatically between the different roles when developing in Cursor IDE.
 
 ## Usage
 
@@ -35,13 +35,89 @@ cd .cursor && git fetch && git checkout main && git pull && cd -
 
 Optional: Ensure `.gitmodules` tracks the desired branch (e.g., `main`) for `.cursor`.
 
-## Commands
--  `@init.mdc` - Executes a one-time, comprehensive setup for a new project. It covers the initial planning, architectural design, and scaffolding of the codebase and its supporting tooling. Run once per project; see `rules/global.mdc` Flow for pre-checks to detect if init has already run.
+## How It Works
 
-- `@plan.mdc` - Engages the Project Manager and Architect to add or refine features by modifying project documentation. This is for all subsequent planning after the initial `init`.
+The system uses an **orchestrator + subagent** architecture. The orchestrator (`rules/global.mdc`, always applied) reads your intent and project state, then delegates work to specialist subagents that each embody a distinct persona.
 
-- `@prototype.mdc` - Runs a focused prototyping session for a specific backlog task that is in `TODO` and has no existing prototype. Produces a single-file prototype and updates the task’s `Prototype` column in `docs/backlog.md` with the path and brief notes.
+```mermaid
+---
+config:
+  theme: redux
+  layout: dagre
+---
+flowchart TD
+        A(["User Request"])
+        A --> B{"Is Init'd?"}
+        B --> C["No, Initialize"]
+        C --> B{"Is Init?"}
+        B --> D["Yes"]
+        D --> E{"Is User Request
+        For New Feature?"}
+        E --> F["No"]
+        E --> FF["Yes"]
+        FF --> GG["Invoke Planner: Plan Feature"]
+        GG --> HH["Free Form"]
+        HH --> G
+        F --> G{"Is User Request
+        to Work on Backlog?"}
+        G --> H["Yes"]
+        G --> HHH["No"]
+        HHH --> III["Free Form"]
+        III --> G
+        H --> I["Pick Next Task"]
+        I --> J["Invoke Architect: Design & Frame Task"]
+        J --> K{"Has Risky 
+        Architectural Decisions?"}
+        K --> N["No"]
+        K --> NN["Yes"]
+        NN --> OO["Require User Input"]
+        N --> O["Invoke Dev: Complete Work"]
+        OO --> O
+        O --> P["Invoke Tester: Adversarial Testing"]
+        P --> Q{"Meets Success Criteria?"}
+        Q --> R["Yes"]
+        Q --> RR["No"]
+        R --> S["Meets User Stop Condition?"]
+        RR --> O
+        S --> T["Yes"]
+        S --> TT["No"]
+        T --> U["All Done!"]
+        TT --> I
+```
 
-- `@dev.mdc`  - A focused session that engages the Software Engineer archetype to write code and associated unit & integration tests for tasks defined in `docs/backlog.md`, leveraging any prototype referenced in the task’s `Prototype` column.
+The orchestrator scopes the task loop to a specific task, epic, or the full backlog based on your request. It auto-proceeds through safe transitions and pauses for risky architectural decisions or destructive operations.
 
-- `@test.mdc` - A session that engages the Quality Assurance Professional archetype to execute manual tests against tasks defined in `docs/backlog.md`.
+## Initialization
+
+`@init.mdc` remains a rule for interactive one-time project setup covering initial planning, architectural design, and scaffolding. Run once per project; the orchestrator detects if init has already run and skips it.
+
+## Subagents
+
+| Subagent | Persona | Purpose |
+|----------|---------|---------|
+| `/planner` | Project Manager | Plan new features. Updates overview and populates backlog with tasks. |
+| `/architect` | Architect | Design and frame a specific task before development. Flags risky decisions. |
+| `/developer` | Software Engineer | Implement backlog tasks, write tests, update testability docs. |
+| `/tester` | QA Professional | Adversarial verification of implemented work. Tries to break it. |
+
+Invoke a subagent explicitly with `/name` syntax (e.g., `/planner add user authentication`) or let the orchestrator delegate automatically based on project state.
+
+
+
+## Structure
+
+```
+agents/
+  planner.md       # Project Manager subagent
+  architect.md     # Architect subagent
+  developer.md     # Software Engineer subagent
+  tester.md        # QA Professional subagent
+rules/
+  global.mdc       # Orchestrator (always applied)
+  init.mdc         # One-time project setup
+templates/
+  overview.md      # Project overview template
+  design.md        # DDD design template
+  backlog.md       # Backlog table template
+  testability.md   # Verification methods template
+```

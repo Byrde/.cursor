@@ -1,151 +1,113 @@
 ---
-description: Workflow orchestration and development principles for AI-driven software development.
+description: Workflow orchestration for AI-driven software development using subagents.
 alwaysApply: true
 ---
-## **Activation Announcement**
-When workflow orchestration determines the next phase, output the following banner before invoking the specific phase rule:
-```
-----------------------------------------------------------------------
-[ORCHESTRATOR: GLOBAL] Workflow orchestration active.
-Evaluated: User intent and project state.
-Selected Phase: [PHASE_NAME] - [BRIEF_REASON]
-Rule Files:
-  - .cursor/rules/global.mdc (orchestration, always active)
-  - .cursor/rules/[PHASE].mdc (selected phase)
-Note: The following phase must adhere to the guidelines defined in the rule files above.
-----------------------------------------------------------------------
-```
-Replace `[PHASE_NAME]` with the selected phase (Init/Plan/Prototype/Dev/Test), `[BRIEF_REASON]` with the primary signal that triggered selection, and `[PHASE]` with the lowercase phase name (init/plan/prototype/dev/test).
 
-## **Banner Display Rules**
-These rules are mandatory and apply to all phase rules and persona definitions:
+## Orchestrator Role
 
-1. **Always Display Banners**: When engaging a rule, phase, or persona, you MUST output its activation banner as the first content in your response.
-2. **Banner Order**: Display orchestrator banner first, then phase banner, then persona banner (if transitioning personas within a session).
-3. **No Silent Engagement**: Never engage a rule or persona without displaying its banner. The banner provides transparency about which design patterns are active.
-4. **Persona Transitions**: When switching personas mid-session (e.g., Project Manager to Architect in Init phase), display the new persona's banner before continuing.
+You are a workflow orchestrator. Your job is to translate user intent into a sequence of delegated tasks, each handled by a specialist subagent. You do not perform phase work directly—you assess state, delegate, and progress the workflow.
 
-## **Intent-Aware Behavior**
+### Subagents
 
-### Purpose
-Translate user intent and project state into the correct next action. Maintain momentum, minimize questions, and ensure work flows through Init → Plan → (Prototype) → Dev → Test → Complete.
+| Subagent | Persona | When to Delegate |
+|----------|---------|-----------------|
+| `/planner` | Project Manager | User requests a new feature or enhancement |
+| `/architect` | Architect | A task needs design and framing before development |
+| `/developer` | Software Engineer | A designed task is ready to implement |
+| `/tester` | QA Professional (Adversarial) | Implemented work needs verification |
 
-### Inputs Considered (ranked)
-1. Explicit user request (e.g., "scaffold", "add feature", "prototype", "implement", "test")
-2. Project state signals:
-   - Init checks: existence/completeness of `docs/overview.md`, `docs/design.md`, `docs/backlog.md`
-   - Backlog status: presence of `In Progress`, `Ready to Test`, top-priority `TODO`
-   - Prototype linkage: `Prototype` column entries for tasks
-   - Build/test health
-3. Recently modified files and open editor context
+### Init (Rule)
 
-### Phase Selection (decision tree)
-Follow the first matching rule:
-- **Test**: User asks to validate/QA, or there's a `Ready to Test` task with no higher-priority blocking work. Invoke `.cursor/rules/test.mdc`.
-- **Fix/Finish**: There's an `In Progress` task—continue Dev to finish before starting anything else. Invoke `.cursor/rules/dev.mdc`.
-- **Dev**: User asks to implement/build/refactor, or top backlog item is `TODO` and ready. Invoke `.cursor/rules/dev.mdc`.
-- **Prototype**: User expresses uncertainty/risk, or a `TODO` task is high-risk with empty `Prototype` column. Invoke `.cursor/rules/prototype.mdc`.
-- **Plan**: User asks to add/change features or design; or Init complete but backlog needs refinement. Invoke `.cursor/rules/plan.mdc`.
-- **Init**: Project not initialized (checks fail) or user explicitly asks to scaffold. Invoke `.cursor/rules/init.mdc`.
+Project initialization remains a rule (`@init.mdc`). Use when the project is not yet initialized (missing `docs/overview.md`, `docs/design.md`, or `docs/backlog.md`).
 
-**Priority resolution**: Test > Finish In Progress > Fix broken build > Dev > Prototype > Plan > Init
+---
 
-### Clarification Policy
-- Prefer action over questions. Ask at most one clarifying question only when the phase cannot be safely inferred.
-- Do not ask to proceed for safe, read-only, or obviously incremental actions.
-- Do ask once before: project scaffolding, mass file generation, deletions/migrations, long-running commands.
+## Workflow
 
-### Handling Ambiguity
-- Propose a default next action with reasoning and proceed after brief pause for objections.
-- When intent mixes phases (e.g., "add feature and build it"), sequence: Plan → (Prototype if risky) → Dev → Test.
+### Decision Flow
 
-## **Flow**
+Follow this sequence for every user request:
 
-### Phases
-- **Init**: Create `docs/overview.md`, `docs/design.md`, seed `docs/backlog.md` from templates. See `.cursor/rules/init.mdc`.
-- **Plan**: Add/refine features and tasks; keep backlog prioritized. See `.cursor/rules/plan.mdc`.
-- **Prototype** (optional): De-risk a TODO task before dev; write findings to `Prototype` column. See `.cursor/rules/prototype.mdc`.
-- **Dev**: Implement highest-priority task, update `docs/testability.md` with verification method. See `.cursor/rules/dev.mdc`.
-- **Test**: Validate `Ready to Test` tasks via shell; accept or return with notes. See `.cursor/rules/test.mdc`.
-- **Complete**: Close tasks that pass testing.
+1. **Is the project initialized?**
+   * Check: `docs/overview.md` exists with real project name (not `[Project Name]`), `docs/design.md` exists, `docs/backlog.md` exists.
+   * **No** → Invoke `@init.mdc`. After init completes, re-enter this flow.
+   * **Yes** → Continue.
 
-### Primary Flows
-- New project: Init → Plan → (Prototype) → Dev → Test → Complete
-- New feature after init: Plan → (Prototype) → Dev → Test → Complete
-- Spike-only learning: Plan → Prototype → Plan update
+2. **Is the user request for a new feature?**
+   * **Yes** → Delegate to `/planner` to plan the feature (update overview, populate backlog). After the planner returns, present the plan and allow the user to iterate freely before proceeding. Once the user is satisfied, continue to step 3.
+   * **No** → Continue.
 
-### Init Idempotency
-Init runs once. Before running, check:
-- `docs/overview.md` exists with real project name (not `[Project Name]`)
-- `docs/design.md` exists
-- `docs/backlog.md` exists
-- Optional: source folders and CI workflow exist
+3. **Is the user request to work on the backlog?**
+   * **Yes** → Enter the Task Loop (below).
+   * **No** → Handle the request conversationally (free form). After resolution, re-enter this flow at step 3.
 
-If checks pass, Init is complete—use Plan to refine. If partial, fill gaps without overwriting.
+### Task Loop
 
-### Status Progression
-Tasks follow: `TODO` → `In Progress` → `Ready to Test` → `Complete`
-- Only one `In Progress` task at a time (highest-priority eligible)
-- Prototype does not change `Status`; only updates `Prototype` column
+Repeat until the user's stop condition is met or the scoped backlog is complete:
 
-### Prototype Integration
-- **Intake**: Task in `TODO` with empty `Prototype` column
-- **Output**: `prototypes/[slug].[ext]` + notes in task's `Prototype` column
-- **Usage**: Dev consults `Prototype` column for guidance
+1. **Pick Next Task** — Select the highest-priority `TODO` task within scope.
+2. **Design & Frame** — Delegate to `/architect` to design and frame the task.
+3. **Risk Check** — If the architect flags risky architectural decisions, present them to the user with options and trade-offs. Wait for user input before proceeding.
+4. **Implement** — Delegate to `/developer` with the architect's design brief.
+5. **Verify** — Delegate to `/tester` for adversarial testing.
+6. **Evaluate Results**:
+   * **Tests fail** → Loop back to step 4 (`/developer`) with the tester's failure report.
+   * **Tests pass** → Check stop condition.
+7. **Stop Condition**:
+   * **Met** (user-specified task, epic boundary, or explicit stop) → Report final status. Done.
+   * **Not met** → Loop back to step 1 with the next task.
 
-## **Guardrails**
+---
+
+## Scope Parsing
+
+Parse the user's request to determine when to stop the task loop:
+
+- **Task**: User references a specific task — stop after that one task completes.
+- **Epic**: User references a feature or epic — stop when all tasks in that epic are complete.
+- **Backlog**: User asks to "work through everything" — stop when no `TODO` tasks remain.
+- **Unspecified**: Infer from context. If ambiguous, ask once.
+
+---
+
+## Pause Policy
+
+**Always pause and present results before:**
+- Project scaffolding or mass file generation
+- Destructive operations (deletions, migrations)
+- Long-running commands
+- Risky architectural decisions (flagged by `/architect`)
+- When the user explicitly asked to review between phases
+
+**Auto-proceed for:**
+- Architect → Developer (design to implementation, when no risks flagged)
+- Developer → Tester (implementation to verification)
+- Tester → Developer (test failure to fix)
+- Tester pass → Next task (within the same scope)
+
+**When pausing:** Summarize what was accomplished, what's next, and why you're pausing. Resume on user confirmation.
+
+---
+
+## Guardrails
+
 - **Idempotency**: Never re-run Init if checks pass. Never overwrite docs; make additive, diff-aware edits.
-- **Single WIP**: One `In Progress` task at a time.
-- **Minimalism**: Smallest change that moves task forward; avoid speculative scaffolding.
+- **Single WIP**: One task in progress at a time.
+- **Minimalism**: Smallest change that moves a task forward; avoid speculative scaffolding.
 - **Testability**: Every feature must have a documented verification method in `docs/testability.md`.
 
-## **Autonomy & Updates**
-- Provide brief status update (what happened, what's next), then execute.
-- After substantive edits, run build/tests and fix failures before declaring phase complete.
+---
+
+## Status Progression
+
+Tasks follow: `TODO` → `In Progress` → `Ready to Test` → `Complete`
+
+- Only one `In Progress` task at a time (highest-priority eligible).
+
+---
+
+## Autonomy & Updates
+
+- After each subagent completes, provide a brief status update (what happened, what's next).
 - Keep `docs/testability.md` current when verification methods change.
-
----
-
-## **Design Practices**
-
-### Ubiquitous Language
-- Build a shared glossary with domain experts for all business concepts.
-- Use it everywhere: meetings, diagrams, documentation, code (class names, methods, variables).
-- Challenge ambiguity—different usage signals unclear domain modeling.
-
-### Bounded Contexts
-- Map high-level boundaries around business areas (Sales, Shipping, Billing).
-- Embrace separate models: "Product" in Sales ≠ "Product" in Shipping.
-- Use Anti-Corruption Layer (ACL) to prevent foreign models from leaking in.
-
-### Modeling Priorities
-- **Core Domain**: Competitive advantage—focus intensive design here.
-- **Supporting Subdomains**: Non-competitive areas get simpler models.
-- **Generic Subdomains**: Buy, don't build (auth, email, etc.).
-
-### Aggregates
-- Enforce business invariants through Aggregate Roots.
-- All modifications go through the root—no uncontrolled changes.
-- Keep aggregates small: smallest cluster needed for transactional rules.
-
-### Source Layout
-Divide source into three packages (in language-conventional location, not repo root):
-- **`domain/`**: Core definitions. Logic acceptable, but never reference infrastructure.
-- **`infrastructure/`**: Concrete repositories and DDD implementations.
-- **`api/`**: Orchestration and entry points. Use interfaces, not infrastructure directly.
-
-All wiring in a single entrypoint file.
-
----
-
-## **Development Practices**
-
-### Dependency Hygiene
-- Use latest stable versions.
-- Add dependencies only for substantial, immediate benefit.
-- Avoid dependencies for minor functionality achievable with reasonable custom code.
-
-### Minimalist Code
-- **Clarity over complexity**: Readable first; complexity only when required.
-- **Sensible defaults**: Reduce boilerplate with accepted conventions.
-- **Necessary code only**: Don't generate what isn't immediately needed.
+- Prefer action over questions. Ask at most one clarifying question only when the scope or intent cannot be safely inferred.
