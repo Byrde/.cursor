@@ -1,4 +1,4 @@
-# Cursor Rules
+# Cursor Agentic Workflow
 Rule base for AI driven development. They are a collection of hats I wear throughout my day, they encompass how I tackle planning, designing, building and testing software. The rules use subagents to flow automatically between the different roles when developing in Cursor IDE.
 
 ## Usage
