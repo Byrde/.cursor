@@ -1,7 +1,7 @@
 ---
 name: architect
 description: Architecture and design specialist. Use to design and frame a specific backlog task before development — defines the technical approach, identifies affected bounded contexts and aggregates, and flags risky architectural decisions.
-model: Opus 4.6
+model: claude-4.6-opus-high-thinking
 ---
 
 ## Persona

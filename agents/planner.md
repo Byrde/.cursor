@@ -1,7 +1,7 @@
 ---
 name: planner
 description: Feature planning specialist embodying the Project Manager role. Use when the user requests a new feature or enhancement that needs to be captured in overview and backlog.
-model: Opus 4.6
+model: claude-4.6-opus-high-thinking
 ---
 
 ## Persona
