@@ -49,7 +49,11 @@ config:
 ---
 flowchart TD
         A(["User Request"])
-        A --> B{"Is Init'd?"}
+        A --> AA{"Just Chat or
+        Clarification?"}
+        AA --> HH["Free Form
+        No Work Performed"]
+        AA --> B{"No, Work Request"}
         B --> C["No, Initialize"]
         C --> B{"Is Init?"}
         B --> D["Yes"]
@@ -58,23 +62,27 @@ flowchart TD
         E --> F["No"]
         E --> FF["Yes"]
         FF --> GG["Invoke Planner: Plan Feature"]
-        GG --> HH["Free Form"]
-        HH --> G
+        GG --> U
         F --> G{"Is User Request
         to Work on Backlog?"}
         G --> H["Yes"]
-        G --> HHH["No"]
-        HHH --> III["Free Form"]
-        III --> G
+        G --> HHH{"Bugfix, Small
+        Refinement, or Debugging?"}
         H --> I["Pick Next Task"]
-        I --> J["Invoke Architect: Design & Frame Task"]
-        J --> K{"Has Risky 
-        Architectural Decisions?"}
-        K --> N["No"]
-        K --> NN["Yes"]
-        NN --> OO["Require User Input"]
+        I --> J["Invoke Architect: Draft Task Plan"]
+        J --> K["Invoke Architect: Review Task Plan"]
+        K --> L{"Any Major
+        Decisions Flagged?"}
+        L --> N["No"]
+        L --> NN["Yes"]
+        NN --> OO{"Flags Waived
+        Upfront?"}
+        OO --> OOO["Yes, Auto-Proceed"]
+        OO --> PPP["No, Present Flags
+        to User"]
         N --> O["Invoke Dev: Complete Work"]
-        OO --> O
+        OOO --> O
+        PPP --> O
         O --> P["Invoke Tester: Adversarial Testing"]
         P --> Q{"Meets Success Criteria?"}
         Q --> R["Yes"]
@@ -83,11 +91,31 @@ flowchart TD
         RR --> O
         S --> T["Yes"]
         S --> TT["No"]
+        HHH --> VX["Yes"]
+        HHH --> VY["No, Pause and
+        Classify Request"]
+        VX --> VZ["Invoke Dev: Reproduce,
+        Triage, and Fix"]
+        VZ --> VA{"Still Small
+        and Low Risk?"}
+        VA --> VB["Yes"]
+        VA --> VC["No, Convert to
+        Planned Backlog Work"]
+        VB --> VD["Invoke Tester: Verify
+        Fix and Regressions"]
+        VD --> VE{"Issue Resolved?"}
+        VE --> T
+        VE --> VZ
+        VC --> GG
         T --> U["All Done!"]
         TT --> I
 ```
 
-The orchestrator scopes the task loop to a specific task, epic, or the full backlog based on your request. It auto-proceeds through safe transitions and pauses for risky architectural decisions or destructive operations.
+The orchestrator scopes the task loop to a specific task, epic, or the full backlog based on your request. `Free Form` is for chat, clarification, and lightweight discussion only; it should not be used to do work outside the prescribed process. Once the request becomes actionable, the orchestrator must route it into an explicit flow, such as planning new work that is not yet in the backlog, continuing backlog execution, or handling bugfixes, small refinements, and debugging through the rapid-fix loop.
+
+For backlog work, it runs an architect draft pass and a separate architect review pass before development, then surfaces any major flagged decisions unless you have waived those flags up front so the workflow can continue end-to-end automatically.
+
+For bugfixes, small refinements, and debugging, the system skips planning and architect review when the work remains small and low risk. In that rapid-fix loop, `/developer` reproduces, triages, and implements the targeted fix, then `/tester` verifies the original issue and probes for regressions. If the work grows beyond a contained fix, it gets converted into planned backlog work before continuing.
 
 ## Initialization
 
@@ -97,14 +125,12 @@ The orchestrator scopes the task loop to a specific task, epic, or the full back
 
 | Subagent | Persona | Purpose |
 |----------|---------|---------|
-| `/planner` | Project Manager | Plan new features. Updates overview and populates backlog with tasks. |
-| `/architect` | Architect | Design and frame a specific task before development. Flags risky decisions. |
-| `/developer` | Software Engineer | Implement backlog tasks, write tests, update testability docs. |
-| `/tester` | QA Professional | Adversarial verification of implemented work. Tries to break it. |
+| `/planner` | Project Manager | Plans new work before it enters the backlog. Updates overview and populates backlog with tasks. |
+| `/architect` | Architect | Drafts and reviews a specific task plan before development, then flags major decisions when needed. |
+| `/developer` | Software Engineer | Implements backlog tasks and handles focused bugfix, refinement, and debugging work. |
+| `/tester` | QA Professional | Adversarially verifies implemented work, reproduced fixes, and nearby regressions. |
 
 Invoke a subagent explicitly with `/name` syntax (e.g., `/planner add user authentication`) or let the orchestrator delegate automatically based on project state.
-
-
 
 ## Structure
 

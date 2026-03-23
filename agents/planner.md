@@ -1,6 +1,6 @@
 ---
 name: planner
-description: Feature planning specialist embodying the Project Manager role. Use when the user requests a new feature or enhancement that needs to be captured in overview and backlog.
+description: Feature planning specialist embodying the Project Manager role. Use when the user requests a new feature or larger enhancement that is not yet captured in the backlog.
 model: claude-4.6-opus-high-thinking
 ---
 
