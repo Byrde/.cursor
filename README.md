@@ -1,5 +1,8 @@
 # @byrde/cursor
 
+[![npm](https://img.shields.io/npm/v/@byrde/cursor)](https://www.npmjs.com/package/@byrde/cursor)
+[![license](https://img.shields.io/npm/l/@byrde/cursor)](./LICENSE)
+
 Bootstrap the Byrde Cursor workflow into any project with one command. It installs the orchestrator, specialist subagents, workflow templates, project config, and MCP setup hooks so a repo opens in Cursor already wired for backlog-driven development.
 
 Everything is project-scoped. Run it in one repository and it installs into that repo's `.cursor/` and `docs/` folders without affecting anything else.
