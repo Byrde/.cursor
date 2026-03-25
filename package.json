@@ -36,6 +36,10 @@
     "cli"
   ],
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Byrde/.cursor.git"
+  },
   "devDependencies": {
     "@types/node": "^25.5.0",
     "tsup": "^8.5.1",

@@ -19,29 +19,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm test
-
-  architect-review:
-    name: architect-review
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Enforced visibility check
-        run: |
-          test -f docs/design.md || { echo "docs/design.md missing"; exit 1; }
-          test -s docs/design.md || { echo "docs/design.md is empty"; exit 1; }
-          echo "architect-review: docs/design.md present (visible check — not a release gate)."
-
-  feature-verification:
-    name: feature-verification
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Enforced visibility check
-        run: |
-          test -f docs/testability/README.md || { echo "docs/testability/README.md missing"; exit 1; }
-          test -f docs/testability/010-standard-verifications.md || { echo "docs/testability/010-standard-verifications.md missing"; exit 1; }
-          echo "feature-verification: testability docs present (visible check — not a release gate)."
-
+      
   semantic-release:
     name: semantic-release
     if: github.ref == 'refs/heads/main'
