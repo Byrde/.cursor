@@ -1,1 +1,6 @@
 .DS_Store
+.cursor
+node_modules/
+dist/
+docs/
+*.tgz

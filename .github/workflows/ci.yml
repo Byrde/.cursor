@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+
+  architect-review:
+    name: architect-review
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enforced visibility check
+        run: |
+          test -f docs/design.md || { echo "docs/design.md missing"; exit 1; }
+          test -s docs/design.md || { echo "docs/design.md is empty"; exit 1; }
+          echo "architect-review: docs/design.md present (visible check — not a release gate)."
+
+  feature-verification:
+    name: feature-verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enforced visibility check
+        run: |
+          test -f docs/testability/README.md || { echo "docs/testability/README.md missing"; exit 1; }
+          test -f docs/testability/010-standard-verifications.md || { echo "docs/testability/010-standard-verifications.md missing"; exit 1; }
+          echo "feature-verification: testability docs present (visible check — not a release gate)."
+
+  semantic-release:
+    name: semantic-release
+    if: github.ref == 'refs/heads/main'
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Create Release
+        id: release
+        uses: Byrde/github-reusable-workflows/actions/semantic-release@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          should-create-release: "true"
+
+  publish:
+    name: publish
+    needs: semantic-release
+    if: needs.semantic-release.outputs.version != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+      - run: npm ci
+      - run: npm run build
+      - name: Version package
+        run: |
+          VERSION=${{ needs.semantic-release.outputs.version }}
+          npm version "$VERSION" --no-git-tag-version
+      - name: Publish @byrde/cursor
+        run: npm publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

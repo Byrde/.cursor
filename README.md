@@ -1,151 +1,116 @@
-# Cursor Agentic Workflow
-Rule base for AI driven development. They are a collection of hats I wear throughout my day, they encompass how I tackle planning, designing, building and testing software. The rules use subagents to flow automatically between the different roles when developing in Cursor IDE.
+# @byrde/cursor
+
+Bootstrap the Byrde Cursor workflow into any project with one command. It installs the orchestrator, specialist subagents, workflow templates, project config, and MCP setup hooks so a repo opens in Cursor already wired for backlog-driven development.
+
+Everything is project-scoped. Run it in one repository and it installs into that repo's `.cursor/` and `docs/` folders without affecting anything else.
 
 ## Usage
 
-Add this repository as a submodule in the root of your target project at the path `.cursor`. The files reference this path internally (e.g., `mdc:.cursor/...`).
+```bash
+npx @byrde/cursor init [options]
+```
 
-### Add the submodule
+| Option | Description |
+|---|---|
+| `--cwd <path>` | Target project directory. Defaults to the current working directory. |
+| `--skip-mcp` | Skip GitHub MCP setup even when the selected backlog provider is GitHub Project (v2) / `github-issues`. |
+| `--force` | Overwrite managed files even when local modifications are detected. |
+| `--verbose` | Print detailed install, conflict, validation, and scaffold output. |
+
+On first run, `init` guides you through a short setup flow, writes `.cursor/workflow.json`, scaffolds template docs that match your backlog choice, installs workflow assets into `.cursor/`, and, when you choose a GitHub-backed backlog, writes `.cursor/mcp.json` to enable the GitHub MCP server. Re-running the command lets you keep or reconfigure the existing workflow setup, updates managed files safely, and preserves local changes by default.
+
+## What Gets Installed
+
+After `npx @byrde/cursor init`, a project contains:
+
+```text
+.cursor/
+  agents/
+  rules/
+  templates/
+  workflow.json
+  .managed.json
+docs/
+  overview.md
+  design.md
+  testability/
+    README.md
+```
+
+| Path | Purpose |
+|---|---|
+| `.cursor/rules/global.mdc` | Orchestrator rule that routes work across planner, architect, developer, and tester roles. |
+| `.cursor/rules/init.mdc` | Lightweight fallback that points users to the CLI installer. |
+| `.cursor/agents/*` | Specialist subagent definitions for planning, architecture, development, and testing. |
+| `.cursor/templates/*` | Template documents used for project planning and setup flows. |
+| `.cursor/workflow.json` | Project workflow configuration: backlog provider/location plus default architect-review and testing behavior. |
+| `.cursor/mcp.json` | Cursor MCP config. Written only when the selected backlog provider is `github-issues` (GitHub Project v2) and MCP setup is not skipped. |
+| `.cursor/.managed.json` | Managed-file state used to detect safe updates, local edits, and stale managed files. |
+| `docs/*.md` and `docs/testability/README.md` | Project overview, design, and testability index. A markdown backlog file is scaffolded only when the selected backlog provider is file-based. |
+
+## Workflow Model
+
+The installed workflow uses an orchestrator plus specialist subagents, guided by `.cursor/workflow.json`:
+
+| Subagent | Purpose |
+|---|---|
+| `/planner` | Plans new work and populates backlog items. |
+| `/architect` | Drafts and reviews technical approaches before implementation. |
+| `/developer` | Implements backlog tasks and focused fixes. |
+| `/tester` | Adversarially verifies behavior and regressions. |
+
+The orchestrator decides whether to stay in lightweight chat mode, initialize an unplanned project from template-mode docs, plan new work before it enters the backlog, execute the backlog task loop, or run the rapid-fix loop for contained bugs and refinements.
+
+## Initialization Behavior
+
+Initialization is CLI-driven.
+
+- If workflow assets are missing, run `npx @byrde/cursor init`.
+- If workflow assets are installed but `docs/overview.md` is still in template mode (`[Project Name]`), the orchestrator routes through the normal `/planner` then `/architect` setup flow, using the configured backlog source from `.cursor/workflow.json`.
+- `@init.mdc` no longer contains the old embedded setup conversation; it now serves only as a lightweight discoverability stub.
+
+## Updating An Installed Project
+
+Re-run the installer in the target project:
 
 ```bash
-git submodule add -b main https://github.com/Byrde/.cursor
-git add .gitmodules .cursor
-git commit -m "Add Cursor rules submodule"
+npx @byrde/cursor init
 ```
 
-If you already cloned a project that contains this submodule:
+Use `--force` only when you intentionally want to replace managed files that were modified locally. Otherwise, modified managed files are warned about and preserved.
+
+## Development
+
+Single-package TypeScript CLI. Requires Node.js >= 20.
 
 ```bash
-git submodule update --init --recursive
+npm install
+npm run typecheck
+npm run build
+npm test
 ```
 
-### Update the submodule to the latest
+### CI on this repository
 
-In any repository that uses these rules as a submodule, run:
+GitHub Actions (`.github/workflows/ci.yml`, push to `main` only) runs a mandatory **`build-and-test`** job (install, typecheck, build, test). Release automation (`semantic-release`, then `npm publish` when a version is produced) depends only on that baseline. **`architect-review`** and **`feature-verification`** are separate visible checks that always run lightweight documentation verification and are not release gates.
 
-```bash
-git submodule update --remote --merge .cursor
-git add .cursor
-git commit -m "Update Cursor rules submodule"
+Contributor-facing package layout:
+
+```text
+assets/
+  agents/
+  rules/
+  templates/
+src/
+  api/
+  domain/
+  infrastructure/
+docs/
+  overview.md
+  design.md
+  backlog.md
+  testability/
+    README.md
 ```
 
-Alternatively, inside the submodule:
-
-```bash
-cd .cursor && git fetch && git checkout main && git pull && cd -
-```
-
-Optional: Ensure `.gitmodules` tracks the desired branch (e.g., `main`) for `.cursor`.
-
-## How It Works
-
-The system uses an **orchestrator + subagent** architecture. The orchestrator (`rules/global.mdc`, always applied) reads your intent and project state, then delegates work to specialist subagents that each embody a distinct persona.
-
-```mermaid
----
-config:
-  theme: redux
-  layout: dagre
----
-flowchart TD
-        A(["User Request"])
-        A --> AA{"Just Chat or
-        Clarification?"}
-        AA --> HH["Free Form
-        No Work Performed"]
-        AA --> B{"No, Work Request"}
-        B --> C["No, Initialize"]
-        C --> B{"Is Init?"}
-        B --> D["Yes"]
-        D --> E{"Is User Request
-        For New Feature?"}
-        E --> F["No"]
-        E --> FF["Yes"]
-        FF --> GG["Invoke Planner: Plan Feature"]
-        GG --> U
-        F --> G{"Is User Request
-        to Work on Backlog?"}
-        G --> H["Yes"]
-        G --> HHH{"Bugfix, Small
-        Refinement, or Debugging?"}
-        H --> I["Pick Next Task"]
-        I --> J["Invoke Architect: Draft Task Plan"]
-        J --> K["Invoke Architect: Review Task Plan"]
-        K --> L{"Any Major
-        Decisions Flagged?"}
-        L --> N["No"]
-        L --> NN["Yes"]
-        NN --> OO{"Flags Waived
-        Upfront?"}
-        OO --> OOO["Yes, Auto-Proceed"]
-        OO --> PPP["No, Present Flags
-        to User"]
-        N --> O["Invoke Dev: Complete Work"]
-        OOO --> O
-        PPP --> O
-        O --> P["Invoke Tester: Adversarial Testing"]
-        P --> Q{"Meets Success Criteria?"}
-        Q --> R["Yes"]
-        Q --> RR["No"]
-        R --> S["Meets User Stop Condition?"]
-        RR --> O
-        S --> T["Yes"]
-        S --> TT["No"]
-        HHH --> VX["Yes"]
-        HHH --> VY["No, Pause and
-        Classify Request"]
-        VX --> VZ["Invoke Dev: Reproduce,
-        Triage, and Fix"]
-        VZ --> VA{"Still Small
-        and Low Risk?"}
-        VA --> VB["Yes"]
-        VA --> VC["No, Convert to
-        Planned Backlog Work"]
-        VB --> VD["Invoke Tester: Verify
-        Fix and Regressions"]
-        VD --> VE{"Issue Resolved?"}
-        VE --> T
-        VE --> VZ
-        VC --> GG
-        T --> U["All Done!"]
-        TT --> I
-```
-
-The orchestrator scopes the task loop to a specific task, epic, or the full backlog based on your request. `Free Form` is for chat, clarification, and lightweight discussion only; it should not be used to do work outside the prescribed process. Once the request becomes actionable, the orchestrator must route it into an explicit flow, such as planning new work that is not yet in the backlog, continuing backlog execution, or handling bugfixes, small refinements, and debugging through the rapid-fix loop.
-
-For backlog work, it runs an architect draft pass and a separate architect review pass before development, then surfaces any major flagged decisions unless you have waived those flags up front so the workflow can continue end-to-end automatically.
-
-For bugfixes, small refinements, and debugging, the system skips planning and architect review when the work remains small and low risk. In that rapid-fix loop, `/developer` reproduces, triages, and implements the targeted fix, then `/tester` verifies the original issue and probes for regressions. If the work grows beyond a contained fix, it gets converted into planned backlog work before continuing.
-
-## Initialization
-
-`@init.mdc` remains a rule for interactive one-time project setup covering initial planning, architectural design, and scaffolding. Run once per project; the orchestrator detects if init has already run and skips it.
-
-## Subagents
-
-| Subagent | Persona | Purpose |
-|----------|---------|---------|
-| `/planner` | Project Manager | Plans new work before it enters the backlog. Updates overview and populates backlog with tasks. |
-| `/architect` | Architect | Drafts and reviews a specific task plan before development, then flags major decisions when needed. |
-| `/developer` | Software Engineer | Implements backlog tasks and handles focused bugfix, refinement, and debugging work. |
-| `/tester` | QA Professional | Adversarially verifies implemented work, reproduced fixes, and nearby regressions. |
-
-Invoke a subagent explicitly with `/name` syntax (e.g., `/planner add user authentication`) or let the orchestrator delegate automatically based on project state.
-
-## Structure
-
-```
-agents/
-  planner.md       # Project Manager subagent
-  architect.md     # Architect subagent
-  developer.md     # Software Engineer subagent
-  tester.md        # QA Professional subagent
-rules/
-  global.mdc       # Orchestrator (always applied)
-  init.mdc         # One-time project setup
-templates/
-  overview.md      # Project overview template
-  design.md        # DDD design template
-  backlog.md       # Backlog table template
-  testability.md   # Verification methods template
-```
+`assets/` is the single source of truth for installable workflow files. The repo-local `.cursor/` directory is the dogfooding copy used while developing the package itself.
