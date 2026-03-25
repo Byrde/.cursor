@@ -35,7 +35,7 @@
     "byrde",
     "cli"
   ],
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/Byrde/.cursor.git"
