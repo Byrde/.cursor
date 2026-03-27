@@ -6,13 +6,20 @@ export type WorkflowDefaultMode = "required" | "optional";
 /** Subagent roles with configurable Cursor model ids (see `assets/agents/*.md`). */
 export type WorkflowModelRole =
   | "planner"
-  | "architect"
+  | "architect1"
+  | "architect2"
   | "developer"
   | "tester";
 
 export interface WorkflowModels {
   readonly planner: string;
-  readonly architect: string;
+  /** Cursor model for `/architect-1` (draft pass). */
+  readonly architect1: string;
+  /**
+   * Cursor model for `/architect-2` (pre- and post-development review).
+   * Defaults to `architect1` when omitted in older configs.
+   */
+  readonly architect2: string;
   readonly developer: string;
   readonly tester: string;
 }
@@ -35,6 +42,8 @@ export interface GitHubIssuesBacklogConfig {
   readonly priorityField: string;
   /** Project field name used for workflow status (default `Status`). */
   readonly statusField: string;
+  /** Project field name for relative size estimate (default `Size`). */
+  readonly sizeField: string;
   /**
    * Optional issue label filter (secondary to Project membership). Omit or leave
    * empty when everything is driven from the Project.
@@ -53,7 +62,15 @@ export interface ProjectConfig {
   };
   readonly workflow: {
     readonly defaults: {
-      readonly architectReview: WorkflowDefaultMode;
+      /**
+       * Pre-development: run `/architect-2` after `/architect-1` drafts.
+       * Legacy JSON key: `architectReview`.
+       */
+      readonly preDevelopmentReview: WorkflowDefaultMode;
+      /**
+       * Post-development: run `/architect-2` to review implementation before adversarial verification.
+       */
+      readonly postDevelopmentReview: WorkflowDefaultMode;
       readonly testing: WorkflowDefaultMode;
     };
     readonly models: WorkflowModels;
@@ -63,8 +80,9 @@ export interface ProjectConfig {
 /** Defaults match pre-template agent frontmatter in `assets/agents/`. */
 export function createDefaultWorkflowModels(): WorkflowModels {
   return {
-    planner: "gpt-5.4-high",
-    architect: "gpt-5.4-high",
+    planner: "claude-4.6-opus-high",
+    architect1: "claude-4.6-opus-high",
+    architect2: "gpt-5.4-high",
     developer: "composer-2-fast",
     tester: "composer-2-fast",
   };
@@ -80,7 +98,8 @@ export function createDefaultProjectConfig(): ProjectConfig {
     },
     workflow: {
       defaults: {
-        architectReview: "required",
+        preDevelopmentReview: "required",
+        postDevelopmentReview: "optional",
         testing: "required",
       },
       models: createDefaultWorkflowModels(),
@@ -121,6 +140,7 @@ function normalizeBacklog(
   const githubOptionalDefaults = {
     priorityField: "Priority",
     statusField: "Status",
+    sizeField: "Size",
     mcpServerName: "github",
   } as const;
 
@@ -156,6 +176,9 @@ function normalizeBacklog(
       const statusField = isNonEmptyString(g.statusField)
         ? g.statusField.trim()
         : githubOptionalDefaults.statusField;
+      const sizeField = isNonEmptyString(g.sizeField)
+        ? g.sizeField.trim()
+        : githubOptionalDefaults.sizeField;
       const labelRaw = g.label;
       const label =
         isNonEmptyString(labelRaw) ? labelRaw.trim() : undefined;
@@ -170,6 +193,7 @@ function normalizeBacklog(
             : undefined,
           priorityField,
           statusField,
+          sizeField,
           ...(label !== undefined ? { label } : {}),
           mcpServerName: isNonEmptyString(g.mcpServerName)
             ? g.mcpServerName.trim()
@@ -187,7 +211,8 @@ function normalizeWorkflow(
   base: ProjectConfig["workflow"],
 ): ProjectConfig["workflow"] {
   const models = { ...base.models };
-  let architectReview = base.defaults.architectReview;
+  let preDevelopmentReview = base.defaults.preDevelopmentReview;
+  let postDevelopmentReview = base.defaults.postDevelopmentReview;
   let testing = base.defaults.testing;
 
   if (raw && typeof raw === "object") {
@@ -195,8 +220,22 @@ function normalizeWorkflow(
     const d = w.defaults;
     if (d && typeof d === "object") {
       const def = d as Record<string, unknown>;
-      if (def.architectReview === "required" || def.architectReview === "optional") {
-        architectReview = def.architectReview;
+      if (
+        def.preDevelopmentReview === "required" ||
+        def.preDevelopmentReview === "optional"
+      ) {
+        preDevelopmentReview = def.preDevelopmentReview;
+      } else if (
+        def.architectReview === "required" ||
+        def.architectReview === "optional"
+      ) {
+        preDevelopmentReview = def.architectReview;
+      }
+      if (
+        def.postDevelopmentReview === "required" ||
+        def.postDevelopmentReview === "optional"
+      ) {
+        postDevelopmentReview = def.postDevelopmentReview;
       }
       if (def.testing === "required" || def.testing === "optional") {
         testing = def.testing;
@@ -207,17 +246,26 @@ function normalizeWorkflow(
       const mo = m as Record<string, unknown>;
       const pick = (key: keyof WorkflowModels): string => {
         const v = mo[key];
-        return isNonEmptyString(v) ? v.trim() : base.models[key];
+        return isNonEmptyString(v) ? String(v).trim() : base.models[key];
       };
       models.planner = pick("planner");
-      models.architect = pick("architect");
+      models.architect1 = isNonEmptyString(mo.architect1)
+        ? String(mo.architect1).trim()
+        : isNonEmptyString(mo.architect)
+          ? String(mo.architect).trim()
+          : base.models.architect1;
       models.developer = pick("developer");
       models.tester = pick("tester");
+      models.architect2 = isNonEmptyString(mo.architect2)
+        ? String(mo.architect2).trim()
+        : isNonEmptyString(mo.architectReview)
+          ? String(mo.architectReview).trim()
+          : models.architect1;
     }
   }
 
   return {
-    defaults: { architectReview, testing },
+    defaults: { preDevelopmentReview, postDevelopmentReview, testing },
     models,
   };
 }

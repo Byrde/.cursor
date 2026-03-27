@@ -10,6 +10,7 @@ export const BASE_TEMPLATE_DOC_ENTRIES: ReadonlyArray<{
   { source: "overview.md", target: "docs/overview.md" },
   { source: "design.md", target: "docs/design.md" },
   { source: "testability/README.md", target: "docs/testability/README.md" },
+  { source: "adr/README.md", target: "docs/adr/README.md" },
 ];
 
 export interface TemplateDocsResult {

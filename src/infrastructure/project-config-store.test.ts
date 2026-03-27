@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createDefaultWorkflowModels } from "../domain/config.js";
+import { createDefaultWorkflowModels, normalizeProjectConfig } from "../domain/config.js";
 import {
   ensureProjectConfig,
   loadProjectConfig,
@@ -10,51 +10,6 @@ import {
 } from "./project-config-store.js";
 
 describe("project-config-store", () => {
-  it("loads legacy .cursor/byrde.json when workflow.json is missing", () => {
-    const cwd = mkdtempSync(path.join(tmpdir(), "byrde-config-legacy-"));
-    const legacyPath = path.join(cwd, ".cursor", "byrde.json");
-
-    try {
-      mkdirSync(path.dirname(legacyPath), { recursive: true });
-      writeFileSync(
-        legacyPath,
-        `${JSON.stringify({
-          backlog: {
-            provider: "file",
-            file: {
-              path: "planning/backlog.md",
-            },
-          },
-          workflow: {
-            defaults: {
-              architectReview: "optional",
-              testing: "required",
-            },
-          },
-        }, null, 2)}\n`,
-        "utf8",
-      );
-
-      expect(loadProjectConfig(cwd)).toEqual({
-        backlog: {
-          provider: "file",
-          file: {
-            path: "planning/backlog.md",
-          },
-        },
-        workflow: {
-          defaults: {
-            architectReview: "optional",
-            testing: "required",
-          },
-          models: createDefaultWorkflowModels(),
-        },
-      });
-    } finally {
-      rmSync(cwd, { recursive: true, force: true });
-    }
-  });
-
   it("writes workflow.json without overwriting existing user config", () => {
     const cwd = mkdtempSync(path.join(tmpdir(), "byrde-config-write-"));
 
@@ -69,7 +24,8 @@ describe("project-config-store", () => {
         },
         workflow: {
           defaults: {
-            architectReview: "required",
+            preDevelopmentReview: "required",
+            postDevelopmentReview: "optional",
             testing: "optional",
           },
           models,
@@ -83,13 +39,15 @@ describe("project-config-store", () => {
             projectNumber: 1,
             priorityField: "Priority",
             statusField: "Status",
+            sizeField: "Size",
             label: "workflow",
             mcpServerName: "github",
           },
         },
         workflow: {
           defaults: {
-            architectReview: "optional",
+            preDevelopmentReview: "optional",
+            postDevelopmentReview: "optional",
             testing: "required",
           },
           models,
@@ -101,21 +59,24 @@ describe("project-config-store", () => {
       expect(second.created).toBe(false);
       expect(
         JSON.parse(readFileSync(projectConfigPath(cwd), "utf8")),
-      ).toEqual({
-        backlog: {
-          provider: "file",
-          file: {
-            path: "docs/backlog.md",
+      ).toEqual(
+        normalizeProjectConfig({
+          backlog: {
+            provider: "file",
+            file: {
+              path: "docs/backlog.md",
+            },
           },
-        },
-        workflow: {
-          defaults: {
-            architectReview: "required",
-            testing: "optional",
+          workflow: {
+            defaults: {
+              preDevelopmentReview: "required",
+              postDevelopmentReview: "optional",
+              testing: "optional",
+            },
+            models,
           },
-          models,
-        },
-      });
+        }),
+      );
     } finally {
       rmSync(cwd, { recursive: true, force: true });
     }

@@ -8,7 +8,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createDefaultProjectConfig } from "../domain/config.js";
+import { createDefaultProjectConfig, normalizeProjectConfig } from "../domain/config.js";
 import type { AssetEntry } from "../domain/asset-manifest.js";
 import { hashFileContents } from "../domain/managed-state.js";
 import { installAssets } from "./file-installer.js";
@@ -305,6 +305,30 @@ describe("installAssets", () => {
     expect(r.warnings.some((w) => w.includes("Stale managed"))).toBe(true);
   });
 
+  it("re-renders managed markdown when projectConfig changes and disk matches managed hash", () => {
+    const pkg = mkdtempSync(join(tmpdir(), "byrde-pkg-"));
+    const tpl = "path: {{BACKLOG_FILE_PATH}}\n";
+    writeFileSync(join(pkg, "t.md"), tpl, "utf8");
+    const destBase = mkdtempSync(join(tmpdir(), "byrde-dest-"));
+    const manifest: AssetEntry[] = [
+      { source: "t.md", target: "rules/x.md", render: { kind: "markdown" } },
+    ];
+    const cfg1 = normalizeProjectConfig({
+      backlog: { provider: "file", file: { path: "one.md" } },
+      workflow: createDefaultProjectConfig().workflow,
+    });
+    installAssets(manifest, pkg, destBase, optsWithConfig(false, cfg1));
+    const p1 = join(destBase, "rules/x.md");
+    expect(readFileSync(p1, "utf8")).toContain("one.md");
+    const cfg2 = normalizeProjectConfig({
+      backlog: { provider: "file", file: { path: "two.md" } },
+      workflow: createDefaultProjectConfig().workflow,
+    });
+    const r2 = installAssets(manifest, pkg, destBase, optsWithConfig(false, cfg2));
+    expect(readFileSync(p1, "utf8")).toContain("two.md");
+    expect(r2.manifestOutcomes[0]?.kind).toBe("updated");
+  });
+
   it("renders agent templates from projectConfig.models", () => {
     const pkg = mkdtempSync(join(tmpdir(), "byrde-pkg-"));
     const tpl = "---\nmodel: {{MODEL}}\n---\n";
@@ -326,7 +350,7 @@ describe("installAssets", () => {
         {
           source: "a.md",
           target: "agents/planner.md",
-          renderAgent: "planner",
+          render: { kind: "markdown", agentRole: "planner" },
         },
       ],
       pkg,
@@ -370,7 +394,7 @@ describe("installAssets", () => {
     };
 
     const r = installAssets(
-      [{ source: "a.md", target: "agents/x.md", renderAgent: "planner" }],
+      [{ source: "a.md", target: "agents/x.md", render: { kind: "markdown", agentRole: "planner" } }],
       pkg,
       destBase,
       optsWithConfig(false, projectConfig),

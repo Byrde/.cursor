@@ -1,30 +1,35 @@
 # Testability index
 
-Record how AI verifies each feature using shell commands. Prefer **one markdown file per feature** in this directory.
+Prefer **one markdown file per task**, keyed to the backlog id, with shell-oriented verification steps.
 
-In repositories that use Byrde’s GitHub Actions layout, the mandatory baseline is the **`build-and-test`** job. **`architect-review`** and **`feature-verification`** are additional visible checks that always run lightweight documentation verification and are not release gates.
+Repos using Byrde’s GitHub Actions: mandatory **`build-and-test`** is the baseline CI verification job. Release and publish automation depend on that baseline as configured by the repository.
 
 ## Naming
 
-Use `{FEATURE_NUMBER}-{BRIEF_DESCRIPTION}.md` (for example `001-cli-auth.md`). `FEATURE_NUMBER` is a stable project-local identifier (often zero-padded or backlog-derived). `BRIEF_DESCRIPTION` is a short kebab-case slug.
+Use `<backlog-id>-<brief-description>.md`, where:
 
-Optionally keep this `README.md` as a short index that links to active feature files.
+- **File-backed backlog:** `<backlog-id>` is the task’s **`Entry`** (typically zero-padded, e.g. `025`).
+- **GitHub-backed backlog:** `<backlog-id>` is the **GitHub issue number** for that task.
 
-## What to capture (per feature file)
+`<brief-description>` is a short kebab-case slug. Example (file-backed): `025-init-classification.md`. Example (GitHub-backed): `42-oauth-flow.md`.
+
+Optionally keep this `README.md` as a short index that links to active task files.
+
+## What to capture (per task file)
 
 Use the sections below as a checklist; omit sections that do not apply.
 
 ### Quick entry
 
-| Feature | Verification command | Type |
+| Task | Verification command | Type |
 | :--- | :--- | :--- |
-| [Feature name] | `[shell command]` | Standard |
-| [Feature name] | See Long-Running section below | Long-running |
-| [Feature name] | See User-in-the-loop section below | User action required |
+| [Task / scope] | `[shell command]` | Standard |
+| [Task / scope] | See Long-Running section below | Long-running |
+| [Task / scope] | See User-in-the-loop section below | User action required |
 
 ## Standard verifications
 
-### [Feature name]
+### [Task or scope name]
 
 ```bash
 # Command to verify feature
@@ -37,7 +42,7 @@ Use the sections below as a checklist; omit sections that do not apply.
 
 For services, servers, or processes that do not exit immediately.
 
-### [Feature name]
+### [Task or scope name]
 
 **Start:**
 
@@ -63,7 +68,7 @@ kill %1
 
 For OAuth, hardware, visual checks, etc.
 
-### [Feature name]
+### [Task or scope name]
 
 **AI setup:**
 

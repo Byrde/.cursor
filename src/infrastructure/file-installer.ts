@@ -18,7 +18,7 @@ import {
   type ManagedFileRecord,
   type ManagedState,
 } from "../domain/managed-state.js";
-import { renderAgentTemplate } from "./agent-template.js";
+import { renderWorkflowMarkdownAsset } from "./workflow-asset-renderer.js";
 import {
   loadManagedState,
   saveManagedStateAtomic,
@@ -27,7 +27,7 @@ import {
 export interface InstallOptions {
   readonly force: boolean;
   readonly packageVersion: string;
-  /** Used to render agent templates (`{{MODEL}}`); defaults match shipped presets. */
+  /** Used to render markdown workflow templates; defaults match shipped presets. */
   readonly projectConfig?: ProjectConfig;
 }
 
@@ -38,12 +38,11 @@ function resolveManifestSourceBytes(
 ): Buffer {
   const absSource = path.join(packageRoot, entry.source);
   const raw = readFileSync(absSource);
-  if (!entry.renderAgent) {
+  if (!entry.render || entry.render.kind !== "markdown") {
     return raw;
   }
   const utf8 = raw.toString("utf8");
-  const model = projectConfig.workflow.models[entry.renderAgent];
-  const rendered = renderAgentTemplate(utf8, model);
+  const rendered = renderWorkflowMarkdownAsset(utf8, projectConfig, entry.render);
   return Buffer.from(rendered, "utf8");
 }
 
@@ -201,7 +200,7 @@ export function installAssets(
       } else if (!options.force) {
         const msg = `Skipped managed file (modified on disk): ${entry.target}`;
         warnings.push(msg);
-        if (entry.renderAgent) {
+        if (entry.render?.kind === "markdown" && entry.render.agentRole) {
           const desiredHash = sourceHash;
           if (desiredHash !== record.hash) {
             warnings.push(

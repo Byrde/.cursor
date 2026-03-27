@@ -1,12 +1,24 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { CommanderError, type Command } from "commander";
-import { createDefaultWorkflowModels } from "./domain/config.js";
-import { createProgram, reportCliFailure } from "./cli.js";
+import {
+  createDefaultWorkflowModels,
+  normalizeProjectConfig,
+} from "./domain/config.js";
+import { renderWorkflowMarkdownAsset } from "./infrastructure/workflow-asset-renderer.js";
+import { createProgram, reportCliFailure, type InitOptions } from "./cli.js";
 
 const distCliJs = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
 
@@ -52,14 +64,14 @@ async function parseForTest(
         },
         workflow: {
           defaults: {
-            architectReview: "required",
+            preDevelopmentReview: "required",
+            postDevelopmentReview: "optional",
             testing: "required",
           },
           models: createDefaultWorkflowModels(),
         },
       },
       shouldWriteProjectConfig: true,
-      githubMcpToken: undefined,
     }),
     runInit: async () => {
       // No-op for parser/help tests.
@@ -69,6 +81,26 @@ async function parseForTest(
         warnings: [],
       };
     },
+    promptProviderTransition: async () => ({
+      kind: "transition" as const,
+      effectiveConfig: {
+        backlog: {
+          provider: "file" as const,
+          file: {
+            path: "docs/backlog.md",
+          },
+        },
+        workflow: {
+          defaults: {
+            preDevelopmentReview: "required",
+            postDevelopmentReview: "optional",
+            testing: "required",
+          },
+          models: createDefaultWorkflowModels(),
+        },
+      },
+    }),
+    promptGitHubMcpTokenForInit: async () => "unused",
   });
   prepareProgramForTest(program, captureOut);
   // `from: "user"` means argv is only args after the executable (no node / script path).
@@ -96,6 +128,7 @@ describe("createProgram", () => {
     expect(capture.help).toContain("--skip-mcp");
     expect(capture.help).toContain("--force");
     expect(capture.help).toContain("--verbose");
+    expect(capture.help).toContain("--skip-agent");
   });
 
   it("applies default option values for init", async () => {
@@ -115,14 +148,14 @@ describe("createProgram", () => {
         },
         workflow: {
           defaults: {
-            architectReview: "required" as const,
+            preDevelopmentReview: "required" as const,
+            postDevelopmentReview: "optional" as const,
             testing: "required" as const,
           },
           models: createDefaultWorkflowModels(),
         },
       },
       shouldWriteProjectConfig: true,
-      githubMcpToken: undefined,
     }));
     const program = createProgram({
       runInit: runInitSpy,
@@ -135,9 +168,10 @@ describe("createProgram", () => {
     expect(initCmd!.opts()).toEqual({
       cwd,
       skipMcp: false,
+      skipAgent: false,
       force: false,
       verbose: false,
-    });
+    } satisfies InitOptions);
     expect(runInitSpy).toHaveBeenCalledTimes(1);
     expect(runInitQuestionnaire).toHaveBeenCalledWith({
       cwd,
@@ -151,6 +185,58 @@ describe("createProgram", () => {
       }),
       expect.any(String),
     );
+  });
+
+  it("passes embedded init snapshot to the questionnaire when workflow.json is absent", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "byrde-cli-snap-"));
+    try {
+      mkdirSync(join(cwd, ".cursor", "prompts"), { recursive: true });
+      const cfg = normalizeProjectConfig({
+        backlog: {
+          provider: "file",
+          file: { path: "docs/custom.md" },
+        },
+        workflow: {
+          defaults: {
+            preDevelopmentReview: "required",
+            postDevelopmentReview: "optional",
+            testing: "required",
+          },
+          models: createDefaultWorkflowModels(),
+        },
+      });
+      const prompt = renderWorkflowMarkdownAsset("x", cfg, {
+        kind: "markdown",
+        embedInitProjectConfigSnapshot: true,
+      });
+      writeFileSync(join(cwd, ".cursor", "prompts", "project-initialization.md"), prompt);
+      const runInitQuestionnaire = vi.fn(async () => ({
+        projectConfig: cfg,
+        shouldWriteProjectConfig: false,
+      }));
+      const runInitSpy = vi.fn(async () => ({
+        manifestOutcomes: [],
+        staleOutcomes: [],
+        warnings: [],
+      }));
+      const program = createProgram({ runInit: runInitSpy, runInitQuestionnaire });
+      prepareProgramForTest(program);
+      await program.parseAsync(["init", "--cwd", cwd], { from: "user" });
+      expect(runInitQuestionnaire).toHaveBeenCalledWith({
+        cwd,
+        existingConfig: cfg,
+      });
+      expect(runInitSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cwd,
+          skipMcp: false,
+          overwriteProjectConfig: false,
+        }),
+        expect.any(String),
+      );
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
   });
 
   it("parses explicit init flags", async () => {
@@ -170,14 +256,14 @@ describe("createProgram", () => {
         },
         workflow: {
           defaults: {
-            architectReview: "optional" as const,
+            preDevelopmentReview: "optional" as const,
+            postDevelopmentReview: "optional" as const,
             testing: "optional" as const,
           },
           models: createDefaultWorkflowModels(),
         },
       },
       shouldWriteProjectConfig: true,
-      githubMcpToken: "ghp_secret",
     }));
     const program = createProgram({
       runInit: runInitSpy,
@@ -190,6 +276,7 @@ describe("createProgram", () => {
         "--cwd",
         cwd,
         "--skip-mcp",
+        "--skip-agent",
         "--force",
         "--verbose",
       ],
@@ -199,17 +286,19 @@ describe("createProgram", () => {
     expect(initCmd!.opts()).toEqual({
       cwd,
       skipMcp: true,
+      skipAgent: true,
       force: true,
       verbose: true,
-    });
+    } satisfies InitOptions);
     expect(runInitSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         cwd,
         skipMcp: true,
+        skipAgent: true,
         force: true,
         verbose: true,
         overwriteProjectConfig: true,
-        githubMcpToken: "ghp_secret",
+        githubMcpToken: undefined,
       }),
       expect.any(String),
     );
@@ -222,6 +311,230 @@ describe("createProgram", () => {
     ).rejects.toMatchObject({
       code: "commander.unknownOption",
     });
+  });
+
+  it("does not call provider transition prompt when detected setup matches questionnaire target", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "byrde-cli-no-transition-"));
+    const fileProjectConfig = {
+      backlog: {
+        provider: "file" as const,
+        file: { path: "docs/backlog.md" },
+      },
+      workflow: {
+        defaults: {
+          preDevelopmentReview: "required" as const,
+          postDevelopmentReview: "optional" as const,
+          testing: "required" as const,
+        },
+        models: createDefaultWorkflowModels(),
+      },
+    };
+    const promptTransitionSpy = vi.fn(async () => ({
+      kind: "transition" as const,
+      effectiveConfig: fileProjectConfig,
+    }));
+    const runInitSpy = vi.fn(async () => ({
+      manifestOutcomes: [],
+      staleOutcomes: [],
+      warnings: [],
+    }));
+    const runInitQuestionnaire = vi.fn(async () => ({
+      projectConfig: fileProjectConfig,
+      shouldWriteProjectConfig: true,
+    }));
+    try {
+      const program = createProgram({
+        runInit: runInitSpy,
+        runInitQuestionnaire,
+        promptProviderTransition: promptTransitionSpy,
+        promptGitHubMcpTokenForInit: async () => "unused",
+      });
+      prepareProgramForTest(program);
+      await program.parseAsync(["init", "--cwd", cwd], { from: "user" });
+      expect(promptTransitionSpy).not.toHaveBeenCalled();
+      expect(runInitSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it("calls provider transition prompt when questionnaire target mismatches detected file-backed setup", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "byrde-cli-transition-mismatch-"));
+    const gh = {
+      backlog: {
+        provider: "github-issues" as const,
+        "github-issues": {
+          repository: "acme/demo",
+          projectNumber: 1,
+          priorityField: "Priority",
+          statusField: "Status",
+          sizeField: "Size",
+          label: "backlog",
+          mcpServerName: "github",
+        },
+      },
+      workflow: {
+        defaults: {
+          preDevelopmentReview: "required" as const,
+          postDevelopmentReview: "optional" as const,
+          testing: "required" as const,
+        },
+        models: createDefaultWorkflowModels(),
+      },
+    };
+    const promptTransitionSpy = vi.fn(async () => ({
+      kind: "transition" as const,
+      effectiveConfig: gh,
+    }));
+    const runInitSpy = vi.fn(async () => ({
+      manifestOutcomes: [],
+      staleOutcomes: [],
+      warnings: [],
+    }));
+    try {
+      mkdirSync(join(cwd, ".cursor"), { recursive: true });
+      mkdirSync(join(cwd, "docs"), { recursive: true });
+      writeFileSync(
+        join(cwd, ".cursor", "workflow.json"),
+        `${JSON.stringify(
+          {
+            backlog: { provider: "file", file: { path: "docs/backlog.md" } },
+            workflow: {
+              defaults: {
+                preDevelopmentReview: "required" as const,
+                postDevelopmentReview: "optional" as const,
+                testing: "required" as const,
+              },
+              models: createDefaultWorkflowModels(),
+            },
+          },
+          null,
+          2,
+        )}\n`,
+        "utf8",
+      );
+      writeFileSync(
+        join(cwd, "docs", "backlog.md"),
+        [
+          "| Entry | Epic | Priority | Size | Task Description | Acceptance Criteria | Status | Prototype | Notes |",
+          "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
+          "| 001 | Core | 1 |  | Task | Criteria | `TODO` |  |  |",
+        ].join("\n"),
+      );
+
+      const program = createProgram({
+        runInit: runInitSpy,
+        runInitQuestionnaire: async () => ({
+          projectConfig: gh,
+          shouldWriteProjectConfig: true,
+        }),
+        promptProviderTransition: promptTransitionSpy,
+        promptGitHubMcpTokenForInit: async () => "unused",
+      });
+      prepareProgramForTest(program);
+      await program.parseAsync(["init", "--cwd", cwd], { from: "user" });
+      expect(promptTransitionSpy).toHaveBeenCalledTimes(1);
+      expect(runInitSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectConfig: gh,
+          providerTransitionAck: expect.objectContaining({
+            kind: "transition",
+            effectiveConfig: gh,
+          }),
+        }),
+        expect.any(String),
+      );
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it("uses provider transition prompt on mixed/ambiguous setup and respects cancel without running init", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "byrde-cli-transition-cancel-"));
+    const promptTransitionSpy = vi.fn(async () => ({ kind: "cancel" as const }));
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const runInitSpy = vi.fn(async () => ({
+      manifestOutcomes: [],
+      staleOutcomes: [],
+      warnings: [],
+    }));
+    const fileCfg = normalizeProjectConfig({
+      backlog: {
+        provider: "file",
+        file: { path: "docs/backlog.md" },
+      },
+      workflow: {
+        defaults: {
+          preDevelopmentReview: "required",
+          postDevelopmentReview: "optional",
+          testing: "required",
+        },
+        models: createDefaultWorkflowModels(),
+      },
+    });
+    const gh = normalizeProjectConfig({
+      backlog: {
+        provider: "github-issues",
+        "github-issues": {
+          repository: "acme/demo",
+          projectNumber: 1,
+          priorityField: "Priority",
+          statusField: "Status",
+          sizeField: "Size",
+          label: "backlog",
+          mcpServerName: "github",
+        },
+      },
+      workflow: {
+        defaults: {
+          preDevelopmentReview: "required",
+          postDevelopmentReview: "optional",
+          testing: "required",
+        },
+        models: createDefaultWorkflowModels(),
+      },
+    });
+    try {
+      mkdirSync(join(cwd, ".cursor", "prompts"), { recursive: true });
+      const tpl = readFileSync(
+        join(
+          dirname(fileURLToPath(import.meta.url)),
+          "..",
+          "assets",
+          "prompts",
+          "project-initialization.md",
+        ),
+        "utf8",
+      );
+      const initPrompt = renderWorkflowMarkdownAsset(tpl, fileCfg, {
+        kind: "markdown",
+        embedInitProjectConfigSnapshot: true,
+      });
+      writeFileSync(join(cwd, ".cursor", "prompts", "project-initialization.md"), initPrompt);
+      writeFileSync(
+        join(cwd, ".cursor", "workflow.json"),
+        `${JSON.stringify(gh, null, 2)}\n`,
+        "utf8",
+      );
+
+      const program = createProgram({
+        runInit: runInitSpy,
+        runInitQuestionnaire: async () => ({
+          projectConfig: gh,
+          shouldWriteProjectConfig: true,
+        }),
+        promptProviderTransition: promptTransitionSpy,
+        promptGitHubMcpTokenForInit: async () => "unused",
+      });
+      prepareProgramForTest(program);
+      await program.parseAsync(["init", "--cwd", cwd], { from: "user" });
+      expect(promptTransitionSpy).toHaveBeenCalledTimes(1);
+      expect(runInitSpy).not.toHaveBeenCalled();
+      expect(logSpy).toHaveBeenCalledWith("Init cancelled.");
+    } finally {
+      logSpy.mockRestore();
+      rmSync(cwd, { recursive: true, force: true });
+    }
   });
 });
 

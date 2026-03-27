@@ -8,20 +8,14 @@ import {
   type Task,
   type TaskFilter,
   type TaskStatus,
+  type TaskStatusTransition,
 } from "../domain/backlog/types.js";
 
-const LEGACY_COLUMN_ORDER = [
-  "Epic",
-  "Task Description",
-  "Acceptance Criteria",
-  "Status",
-  "Prototype",
-  "Notes",
-] as const;
-
-const COLUMN_ORDER = [
+const CANONICAL_COLUMN_ORDER = [
+  "Entry",
   "Epic",
   "Priority",
+  "Size",
   "Task Description",
   "Acceptance Criteria",
   "Status",
@@ -29,18 +23,17 @@ const COLUMN_ORDER = [
   "Notes",
 ] as const;
 
-type LegacyColumnName = (typeof LEGACY_COLUMN_ORDER)[number];
-type ColumnName = (typeof COLUMN_ORDER)[number];
-
-type TableVariant = "legacy" | "withPriority";
+type CanonicalColumnName = (typeof CANONICAL_COLUMN_ORDER)[number];
 
 interface ParsedRow {
+  /** Durable provider id; equals the `Entry` cell. */
   readonly id: string;
-  readonly cells: Record<ColumnName, string>;
+  /** 0-based index of this row in the table body (document order). */
+  readonly documentRowIndex: number;
+  readonly cells: Record<CanonicalColumnName, string>;
 }
 
 interface ParsedBacklogDocument {
-  readonly variant: TableVariant;
   readonly beforeTable: string[];
   readonly rows: ParsedRow[];
   readonly afterTable: string[];
@@ -98,10 +91,49 @@ function headerMatches(
   return expected.every((name, i) => cells[i] === name);
 }
 
+function parseEntryNumeric(id: string): number | undefined {
+  const t = id.trim();
+  if (!/^\d+$/.test(t)) {
+    return undefined;
+  }
+  const n = Number.parseInt(t, 10);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function maxNumericEntry(rows: readonly ParsedRow[]): number {
+  let max = 0;
+  for (const row of rows) {
+    const n = parseEntryNumeric(row.id);
+    if (n !== undefined) {
+      max = Math.max(max, n);
+    }
+  }
+  return max;
+}
+
+function entryDisplayWidth(rows: readonly ParsedRow[]): number {
+  let w = 3;
+  for (const row of rows) {
+    const id = row.id.trim();
+    if (/^\d+$/.test(id)) {
+      w = Math.max(w, id.length);
+    }
+  }
+  return w;
+}
+
+function formatNextEntryId(n: number, minWidth: number): string {
+  const s = String(n);
+  const width = Math.max(minWidth, s.length, 3);
+  return s.length >= width ? s : s.padStart(width, "0");
+}
+
 function parseBacklogDocument(content: string): ParsedBacklogDocument {
   const lines = content.split(/\r?\n/);
   const tableStart = lines.findIndex((line, index) => {
-    return line.trim().startsWith("|") && lines[index + 1]?.trim().startsWith("|");
+    return (
+      line.trim().startsWith("|") && lines[index + 1]?.trim().startsWith("|")
+    );
   });
 
   if (tableStart < 0) {
@@ -114,113 +146,41 @@ function parseBacklogDocument(content: string): ParsedBacklogDocument {
   }
 
   const headerCells = splitMarkdownRow(lines[tableStart]);
-  let variant: TableVariant;
-  let columnNames: readonly string[];
-
-  if (headerMatches(headerCells, COLUMN_ORDER)) {
-    variant = "withPriority";
-    columnNames = COLUMN_ORDER;
-  } else if (headerMatches(headerCells, LEGACY_COLUMN_ORDER)) {
-    variant = "legacy";
-    columnNames = LEGACY_COLUMN_ORDER;
-  } else {
+  if (!headerMatches(headerCells, CANONICAL_COLUMN_ORDER)) {
     throw new Error(
-      "Unexpected backlog table header (expected Epic + Priority + … or legacy Epic + Task Description + …).",
+      "Unexpected backlog table header (expected Entry, Epic, Priority, Size, Task Description, Acceptance Criteria, Status, Prototype, Notes).",
     );
   }
 
   const rowLines = lines.slice(tableStart + 2, tableEnd);
   const rows: ParsedRow[] = rowLines.map((line, rowIndex) => {
     const cells = splitMarkdownRow(line);
-    if (cells.length !== columnNames.length) {
+    if (cells.length !== CANONICAL_COLUMN_ORDER.length) {
       throw new Error(`Unexpected backlog row width at row ${rowIndex + 1}.`);
     }
-
-    if (variant === "legacy") {
-      const legacyCells = Object.fromEntries(
-        LEGACY_COLUMN_ORDER.map((column, columnIndex) => [
-          column,
-          cells[columnIndex],
-        ]),
-      ) as Record<LegacyColumnName, string>;
-
-      const full: Record<ColumnName, string> = {
-        Epic: legacyCells.Epic,
-        Priority: formatPriority(DEFAULT_TASK_PRIORITY),
-        "Task Description": legacyCells["Task Description"],
-        "Acceptance Criteria": legacyCells["Acceptance Criteria"],
-        Status: legacyCells.Status,
-        Prototype: legacyCells.Prototype,
-        Notes: legacyCells.Notes,
-      };
-
-      return {
-        id: `backlog-${rowIndex + 1}`,
-        cells: full,
-      };
-    }
-
-    const withP = Object.fromEntries(
-      COLUMN_ORDER.map((column, columnIndex) => [column, cells[columnIndex]]),
-    ) as Record<ColumnName, string>;
-
+    const map = Object.fromEntries(
+      CANONICAL_COLUMN_ORDER.map((column, i) => [column, cells[i] ?? ""]),
+    ) as Record<CanonicalColumnName, string>;
+    const id = map.Entry.trim();
     return {
-      id: `backlog-${rowIndex + 1}`,
-      cells: withP,
+      id,
+      documentRowIndex: rowIndex,
+      cells: map,
     };
   });
 
   return {
-    variant,
     beforeTable: lines.slice(0, tableStart),
     rows,
     afterTable: lines.slice(tableEnd),
   };
 }
 
-function renderTable(
-  rows: readonly ParsedRow[],
-  variant: TableVariant,
-): string[] {
-  if (variant === "legacy") {
-    const bodyRows = rows.map((row) =>
-      LEGACY_COLUMN_ORDER.map((column) => {
-        if (column === "Epic") {
-          return row.cells.Epic;
-        }
-        if (column === "Task Description") {
-          return row.cells["Task Description"];
-        }
-        if (column === "Acceptance Criteria") {
-          return row.cells["Acceptance Criteria"];
-        }
-        if (column === "Status") {
-          return row.cells.Status;
-        }
-        if (column === "Prototype") {
-          return row.cells.Prototype;
-        }
-        return row.cells.Notes;
-      }),
-    );
-    const widths = LEGACY_COLUMN_ORDER.map((column, index) =>
-      Math.max(
-        column.length,
-        ...bodyRows.map((cells) => cells[index]?.length ?? 0),
-      ),
-    );
-    const renderRow = (cells: readonly string[]): string =>
-      `| ${cells.map((cell, index) => cell.padEnd(widths[index])).join(" | ")} |`;
-    const separator = `| ${widths.map((width) => "-".repeat(width)).join(" | ")} |`;
-    return [
-      renderRow(LEGACY_COLUMN_ORDER),
-      separator,
-      ...bodyRows.map(renderRow),
-    ];
-  }
-
-  const bodyRows = rows.map((row) => COLUMN_ORDER.map((column) => row.cells[column]));
-  const widths = COLUMN_ORDER.map((column, index) =>
+function renderCanonicalTable(rows: readonly ParsedRow[]): string[] {
+  const bodyRows = rows.map((row) =>
+    CANONICAL_COLUMN_ORDER.map((column) => row.cells[column]),
+  );
+  const widths = CANONICAL_COLUMN_ORDER.map((column, index) =>
     Math.max(
       column.length,
       ...bodyRows.map((cells) => cells[index]?.length ?? 0),
@@ -232,7 +192,11 @@ function renderTable(
 
   const separator = `| ${widths.map((width) => "-".repeat(width)).join(" | ")} |`;
 
-  return [renderRow(COLUMN_ORDER), separator, ...bodyRows.map(renderRow)];
+  return [
+    renderRow(CANONICAL_COLUMN_ORDER),
+    separator,
+    ...bodyRows.map(renderRow),
+  ];
 }
 
 function toTask(row: ParsedRow): Task {
@@ -240,6 +204,7 @@ function toTask(row: ParsedRow): Task {
     id: row.id,
     epic: row.cells.Epic,
     priority: parsePriorityCell(row.cells.Priority),
+    size: row.cells.Size,
     description: row.cells["Task Description"],
     acceptanceCriteria: row.cells["Acceptance Criteria"],
     status: normalizeStatus(row.cells.Status),
@@ -248,15 +213,23 @@ function toTask(row: ParsedRow): Task {
   };
 }
 
-function sortTasksForList(tasks: Task[]): Task[] {
+function sortTasksForList(tasks: Task[], rowOrder: Map<string, number>): Task[] {
   return [...tasks].sort((a, b) => {
     if (a.priority !== b.priority) {
       return a.priority - b.priority;
     }
-    const ai = Number.parseInt(a.id.replace(/^backlog-/, ""), 10);
-    const bi = Number.parseInt(b.id.replace(/^backlog-/, ""), 10);
+    const ai = rowOrder.get(a.id) ?? 0;
+    const bi = rowOrder.get(b.id) ?? 0;
     return ai - bi;
   });
+}
+
+function buildRowOrderMap(rows: readonly ParsedRow[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const row of rows) {
+    map.set(row.id, row.documentRowIndex);
+  }
+  return map;
 }
 
 function applyFilter(tasks: readonly Task[], filter?: TaskFilter): Task[] {
@@ -280,8 +253,9 @@ export class FileBacklogProvider implements BacklogProvider {
 
   async listTasks(filter?: TaskFilter): Promise<Task[]> {
     const doc = await this.readDocument();
+    const rowOrder = buildRowOrderMap(doc.rows);
     const tasks = doc.rows.map(toTask);
-    return sortTasksForList(applyFilter(tasks, filter));
+    return sortTasksForList(applyFilter(tasks, filter), rowOrder);
   }
 
   async getTask(id: string): Promise<Task | undefined> {
@@ -290,7 +264,11 @@ export class FileBacklogProvider implements BacklogProvider {
     return row ? toTask(row) : undefined;
   }
 
-  async updateTaskStatus(id: string, status: TaskStatus): Promise<void> {
+  async updateTaskStatus(
+    id: string,
+    status: TaskStatus,
+    _transition?: TaskStatusTransition,
+  ): Promise<void> {
     const doc = await this.readDocument();
     const row = doc.rows.find((entry) => entry.id === id);
     if (!row) {
@@ -303,20 +281,18 @@ export class FileBacklogProvider implements BacklogProvider {
 
   async createTask(task: NewTask): Promise<Task> {
     const doc = await this.readDocument();
-    let variant = doc.variant;
-
-    if (variant === "legacy") {
-      for (const r of doc.rows) {
-        r.cells.Priority = formatPriority(DEFAULT_TASK_PRIORITY);
-      }
-      variant = "withPriority";
-    }
+    const nextNum = maxNumericEntry(doc.rows) + 1;
+    const width = entryDisplayWidth(doc.rows);
+    const nextId = formatNextEntryId(nextNum, width);
 
     const nextRow: ParsedRow = {
-      id: `backlog-${doc.rows.length + 1}`,
+      id: nextId,
+      documentRowIndex: doc.rows.length,
       cells: {
+        Entry: nextId,
         Epic: task.epic,
         Priority: formatPriority(task.priority),
+        Size: task.size,
         "Task Description": task.description,
         "Acceptance Criteria": task.acceptanceCriteria,
         Status: formatStatus(task.status),
@@ -327,7 +303,6 @@ export class FileBacklogProvider implements BacklogProvider {
 
     const nextDoc: ParsedBacklogDocument = {
       ...doc,
-      variant,
       rows: [...doc.rows, nextRow],
     };
 
@@ -343,7 +318,7 @@ export class FileBacklogProvider implements BacklogProvider {
   private async writeDocument(doc: ParsedBacklogDocument): Promise<void> {
     const nextLines = [
       ...doc.beforeTable,
-      ...renderTable(doc.rows, doc.variant),
+      ...renderCanonicalTable(doc.rows),
       ...doc.afterTable,
     ];
     await writeFile(this.backlogPath, nextLines.join("\n"), "utf8");

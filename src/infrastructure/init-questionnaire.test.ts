@@ -3,7 +3,11 @@ import {
   createDefaultWorkflowModels,
   normalizeProjectConfig,
 } from "../domain/config.js";
-import { runInitQuestionnaire, type QuestionnairePrompts } from "./init-questionnaire.js";
+import {
+  promptGitHubMcpTokenForInit,
+  runInitQuestionnaire,
+  type QuestionnairePrompts,
+} from "./init-questionnaire.js";
 import * as githubAuth from "./github-auth.js";
 
 function createPrompts(): QuestionnairePrompts {
@@ -21,6 +25,7 @@ describe("runInitQuestionnaire", () => {
     const prompts = createPrompts();
     vi.mocked(prompts.select)
       .mockResolvedValueOnce("file")
+      .mockResolvedValueOnce("optional")
       .mockResolvedValueOnce("optional")
       .mockResolvedValueOnce("required");
     vi.mocked(prompts.input)
@@ -41,14 +46,14 @@ describe("runInitQuestionnaire", () => {
       },
       workflow: {
         defaults: {
-          architectReview: "optional",
+          preDevelopmentReview: "optional",
+          postDevelopmentReview: "optional",
           testing: "required",
         },
         models: createDefaultWorkflowModels(),
       },
     });
     expect(result.shouldWriteProjectConfig).toBe(true);
-    expect(result.githubMcpToken).toBeUndefined();
   });
 
   it("preserves existing setup when reconfigure is declined", async () => {
@@ -65,12 +70,14 @@ describe("runInitQuestionnaire", () => {
           label: "workflow",
           priorityField: "Priority",
           statusField: "Status",
+          sizeField: "Size",
           mcpServerName: "github",
         },
       },
       workflow: {
         defaults: {
-          architectReview: "required" as const,
+          preDevelopmentReview: "required" as const,
+          postDevelopmentReview: "optional" as const,
           testing: "optional" as const,
         },
         models: createDefaultWorkflowModels(),
@@ -90,7 +97,7 @@ describe("runInitQuestionnaire", () => {
     });
   });
 
-  it("collects GitHub MCP auth when github issues backlog is selected", async () => {
+  it("promptGitHubMcpTokenForInit collects auth when gh accounts are available", async () => {
     vi.spyOn(githubAuth, "listGitHubAccounts").mockResolvedValue([
       { account: "alice", host: "github.com", active: true },
     ]);
@@ -98,39 +105,14 @@ describe("runInitQuestionnaire", () => {
       "ghp_from_gh",
     );
     const prompts = createPrompts();
-    vi.mocked(prompts.select)
-      .mockResolvedValueOnce("github-issues")
-      .mockResolvedValueOnce("required")
-      .mockResolvedValueOnce("optional")
-      .mockResolvedValueOnce({
-        kind: "gh-account",
-        account: "alice",
-      });
-    vi.mocked(prompts.input)
-      .mockResolvedValueOnce("acme/demo")
-      .mockResolvedValueOnce("3")
-      .mockResolvedValueOnce("")
-      .mockResolvedValueOnce("Priority")
-      .mockResolvedValueOnce("Status")
-      .mockResolvedValueOnce("");
-    vi.mocked(prompts.confirm).mockResolvedValueOnce(true);
-
-    const result = await runInitQuestionnaire(
-      { cwd: "/tmp/demo" },
-      prompts,
-    );
-
-    expect(result.projectConfig.backlog).toEqual({
-      provider: "github-issues",
-      "github-issues": {
-        repository: "acme/demo",
-        projectNumber: 3,
-        priorityField: "Priority",
-        statusField: "Status",
-        mcpServerName: "github",
-      },
+    vi.mocked(prompts.select).mockResolvedValueOnce({
+      kind: "gh-account",
+      account: "alice",
     });
-    expect(result.githubMcpToken).toBe("ghp_from_gh");
+
+    const token = await promptGitHubMcpTokenForInit(prompts);
+
+    expect(token).toBe("ghp_from_gh");
     expect(githubAuth.resolveGitHubTokenForAccount).toHaveBeenCalledWith(
       "alice",
     );
@@ -146,31 +128,16 @@ describe("runInitQuestionnaire", () => {
     );
   });
 
-  it("embeds GitHub MCP context in the password prompt when gh and env token are unavailable", async () => {
+  it("promptGitHubMcpTokenForInit embeds GitHub MCP context in the password prompt when gh and env token are unavailable", async () => {
     vi.spyOn(githubAuth, "listGitHubAccounts").mockResolvedValue([]);
     const prompts = createPrompts();
-    vi.mocked(prompts.select)
-      .mockResolvedValueOnce("github-issues")
-      .mockResolvedValueOnce("required")
-      .mockResolvedValueOnce("optional");
-    vi.mocked(prompts.input)
-      .mockResolvedValueOnce("acme/demo")
-      .mockResolvedValueOnce("1")
-      .mockResolvedValueOnce("")
-      .mockResolvedValueOnce("Priority")
-      .mockResolvedValueOnce("Status")
-      .mockResolvedValueOnce("");
-    vi.mocked(prompts.confirm).mockResolvedValueOnce(true);
     vi.mocked(prompts.password).mockResolvedValueOnce("ghp_manual");
 
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    const result = await runInitQuestionnaire(
-      { cwd: "/tmp/demo" },
-      prompts,
-    );
+    const token = await promptGitHubMcpTokenForInit(prompts);
 
-    expect(result.githubMcpToken).toBe("ghp_manual");
+    expect(token).toBe("ghp_manual");
     expect(prompts.password).toHaveBeenCalledWith(
       expect.objectContaining({
         message: expect.stringContaining("GitHub MCP"),

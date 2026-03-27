@@ -1,7 +1,8 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-const MANAGED_GITHUB_SERVER_PREFIX = "cursor-workflow:";
+/** Prefix for MCP server keys written and managed by this workflow (read-only detection). */
+export const MANAGED_GITHUB_SERVER_PREFIX = "cursor-workflow:";
 
 export interface McpServerEntry {
   readonly command: string;
@@ -29,6 +30,28 @@ function mcpConfigPath(cwd: string): string {
   return path.join(cwd, ".cursor", "mcp.json");
 }
 
+export interface ManagedGitHubMcpReadResult {
+  readonly present: boolean;
+  /** Keys under `mcpServers` that use the managed GitHub MCP prefix (no env/token values). */
+  readonly serverKeys: readonly string[];
+}
+
+/**
+ * Read-only signal: whether `.cursor/mcp.json` contains a workflow-managed GitHub MCP entry.
+ * Does not validate tokens or server command lines beyond key naming.
+ */
+export function readManagedGitHubMcpSignal(cwd: string): ManagedGitHubMcpReadResult {
+  const filePath = mcpConfigPath(cwd);
+  if (!existsSync(filePath)) {
+    return { present: false, serverKeys: [] };
+  }
+  const existing = readExistingConfig(cwd);
+  const serverKeys = Object.keys(existing.mcpServers).filter((k) =>
+    k.startsWith(MANAGED_GITHUB_SERVER_PREFIX),
+  );
+  return { present: serverKeys.length > 0, serverKeys };
+}
+
 function readExistingConfig(cwd: string): CursorMcpConfig {
   const filePath = mcpConfigPath(cwd);
   if (!existsSync(filePath)) {
@@ -45,6 +68,40 @@ function readExistingConfig(cwd: string): CursorMcpConfig {
 
 function managedServerKey(serverName: string): string {
   return `${MANAGED_GITHUB_SERVER_PREFIX}${serverName}`;
+}
+
+/**
+ * Removes only workflow-managed GitHub MCP server entries (keys with
+ * {@link MANAGED_GITHUB_SERVER_PREFIX}). Preserves all other MCP servers.
+ * Deletes `.cursor/mcp.json` when it would become empty.
+ *
+ * @returns true when the file was changed or removed.
+ */
+export function removeManagedGitHubMcpServers(cwd: string): boolean {
+  const filePath = mcpConfigPath(cwd);
+  if (!existsSync(filePath)) {
+    return false;
+  }
+  const existing = readExistingConfig(cwd);
+  const nextServers: Record<string, McpServerEntry> = {};
+  for (const [key, value] of Object.entries(existing.mcpServers)) {
+    if (!key.startsWith(MANAGED_GITHUB_SERVER_PREFIX)) {
+      nextServers[key] = value;
+    }
+  }
+  if (Object.keys(nextServers).length === Object.keys(existing.mcpServers).length) {
+    return false;
+  }
+  if (Object.keys(nextServers).length === 0) {
+    unlinkSync(filePath);
+    return true;
+  }
+  writeFileSync(
+    filePath,
+    `${JSON.stringify({ mcpServers: nextServers }, null, 2)}\n`,
+    "utf8",
+  );
+  return true;
 }
 
 export function writeGitHubMcpServer(

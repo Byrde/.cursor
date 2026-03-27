@@ -1,6 +1,12 @@
 import { describe, expectTypeOf, it } from "vitest";
 import type { BacklogProvider } from "./provider.js";
-import type { NewTask, Task, TaskFilter, TaskStatus } from "./types.js";
+import type {
+  NewTask,
+  Task,
+  TaskFilter,
+  TaskStatus,
+  TaskStatusTransition,
+} from "./types.js";
 
 describe("BacklogProvider", () => {
   it("exposes the expected async contract", () => {
@@ -11,7 +17,11 @@ describe("BacklogProvider", () => {
       (id: string) => Promise<Task | undefined>
     >();
     expectTypeOf<BacklogProvider["updateTaskStatus"]>().toEqualTypeOf<
-      (id: string, status: TaskStatus) => Promise<void>
+      (
+        id: string,
+        status: TaskStatus,
+        transition?: TaskStatusTransition,
+      ) => Promise<void>
     >();
     expectTypeOf<BacklogProvider["createTask"]>().toEqualTypeOf<
       (task: NewTask) => Promise<Task>

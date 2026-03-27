@@ -2,9 +2,19 @@ import { readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command, CommanderError } from "commander";
+import type { ProviderTransitionAck } from "./domain/provider-transition.js";
 import { runInit } from "./api/init.js";
-import { runInitQuestionnaire } from "./infrastructure/init-questionnaire.js";
+import {
+  promptGitHubMcpTokenForInit,
+  runInitQuestionnaire,
+} from "./infrastructure/init-questionnaire.js";
 import { loadProjectConfig } from "./infrastructure/project-config-store.js";
+import {
+  classifyDetectedProjectSetup,
+  compareDetectedSetupToTarget,
+  inspectProjectInitState,
+} from "./infrastructure/project-init-state.js";
+import { promptProviderTransition } from "./infrastructure/provider-transition-prompt.js";
 
 const packageRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -16,6 +26,7 @@ export interface InitOptions {
   skipMcp: boolean;
   force: boolean;
   verbose: boolean;
+  skipAgent: boolean;
 }
 
 function readPackageVersion(): string {
@@ -30,11 +41,17 @@ const packageVersion = readPackageVersion();
 export interface CliDependencies {
   readonly runInit?: typeof runInit;
   readonly runInitQuestionnaire?: typeof runInitQuestionnaire;
+  readonly promptProviderTransition?: typeof promptProviderTransition;
+  readonly promptGitHubMcpTokenForInit?: typeof promptGitHubMcpTokenForInit;
 }
 
 export function createProgram(deps: CliDependencies = {}): Command {
   const runInitCommand = deps.runInit ?? runInit;
   const runQuestionnaire = deps.runInitQuestionnaire ?? runInitQuestionnaire;
+  const runPromptTransition =
+    deps.promptProviderTransition ?? promptProviderTransition;
+  const runPromptGitHubToken =
+    deps.promptGitHubMcpTokenForInit ?? promptGitHubMcpTokenForInit;
   const program = new Command();
   program
     .name("byrde-cursor")
@@ -50,13 +67,52 @@ export function createProgram(deps: CliDependencies = {}): Command {
       process.cwd(),
     )
     .option("--skip-mcp", "skip GitHub MCP setup", false)
+    .option(
+      "--skip-agent",
+      "do not launch the Cursor agent CLI after install (CI/non-interactive)",
+      false,
+    )
     .option("--force", "overwrite managed files when needed", false)
     .option("--verbose", "print extra diagnostics", false)
     .action(async (options: InitOptions) => {
+      const inspection = inspectProjectInitState(options.cwd);
       const questionnaire = await runQuestionnaire({
         cwd: options.cwd,
-        existingConfig: loadProjectConfig(options.cwd),
+        existingConfig:
+          inspection.resolvedInstalledConfig ?? loadProjectConfig(options.cwd),
       });
+
+      const targetConfig = questionnaire.projectConfig;
+      const classified = classifyDetectedProjectSetup(inspection);
+      const relation = compareDetectedSetupToTarget(classified, targetConfig);
+
+      let effectiveConfig = targetConfig;
+      let providerTransitionAck: ProviderTransitionAck | undefined;
+
+      if (relation !== "matches_target") {
+        const tr = await runPromptTransition({
+          classified,
+          targetFromQuestionnaire: targetConfig,
+        });
+        if (tr.kind === "cancel") {
+          console.log("Init cancelled.");
+          return;
+        }
+        effectiveConfig = tr.effectiveConfig;
+        providerTransitionAck = {
+          kind: tr.kind,
+          effectiveConfig: tr.effectiveConfig,
+        };
+      }
+
+      let githubMcpToken: string | undefined;
+      if (effectiveConfig.backlog.provider === "github-issues" && !options.skipMcp) {
+        githubMcpToken = await runPromptGitHubToken();
+      }
+
+      const overwriteProjectConfig =
+        questionnaire.shouldWriteProjectConfig || providerTransitionAck !== undefined;
+
       await runInitCommand(
         {
           cwd: options.cwd,
@@ -64,9 +120,11 @@ export function createProgram(deps: CliDependencies = {}): Command {
           verbose: options.verbose,
           force: options.force,
           packageVersion,
-          projectConfig: questionnaire.projectConfig,
-          overwriteProjectConfig: questionnaire.shouldWriteProjectConfig,
-          githubMcpToken: questionnaire.githubMcpToken,
+          projectConfig: effectiveConfig,
+          overwriteProjectConfig,
+          githubMcpToken,
+          providerTransitionAck,
+          skipAgent: options.skipAgent,
         },
         packageRoot,
       );

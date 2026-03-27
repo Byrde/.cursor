@@ -7,8 +7,6 @@ import {
   type ProjectConfig,
 } from "../domain/config.js";
 
-const LEGACY_PROJECT_CONFIG_FILENAME = "byrde.json";
-
 export interface ProjectConfigWriteResult {
   readonly path: string;
   readonly created: boolean;
@@ -20,17 +18,10 @@ export function projectConfigPath(cwd: string): string {
 
 export function loadProjectConfig(cwd: string): ProjectConfig | undefined {
   const configPath = projectConfigPath(cwd);
-  const legacyPath = path.join(cwd, ".cursor", LEGACY_PROJECT_CONFIG_FILENAME);
 
   if (existsSync(configPath)) {
     return normalizeProjectConfig(
       JSON.parse(readFileSync(configPath, "utf8")),
-    );
-  }
-
-  if (existsSync(legacyPath)) {
-    return normalizeProjectConfig(
-      JSON.parse(readFileSync(legacyPath, "utf8")),
     );
   }
 

@@ -24,14 +24,22 @@ describe("scaffoldTemplateDocs", () => {
       const overview = path.join(cwd, "docs", "overview.md");
       const design = path.join(cwd, "docs", "design.md");
       const backlog = path.join(cwd, "docs", "backlog.md");
+      const adrReadme = path.join(cwd, "docs", "adr", "README.md");
       const testabilityReadme = path.join(cwd, "docs", "testability", "README.md");
 
       expect(result.created).toEqual(
-        expect.arrayContaining([overview, design, backlog, testabilityReadme]),
+        expect.arrayContaining([overview, design, backlog, adrReadme, testabilityReadme]),
       );
       expect(result.skipped).toEqual([]);
 
       expect(readFileSync(testabilityReadme, "utf8")).toContain("Testability index");
+      expect(readFileSync(adrReadme, "utf8")).toContain("Architecture Decision Records");
+      expect(readFileSync(adrReadme, "utf8")).toContain("## Final decision");
+
+      const backlogMd = readFileSync(backlog, "utf8");
+      expect(backlogMd).toContain("lightweight scaffold");
+      expect(backlogMd).not.toContain("[Epic from Key Features]");
+      expect(backlogMd).not.toContain("[Task Title or User Story]");
     } finally {
       rmSync(cwd, { recursive: true, force: true });
     }
@@ -93,12 +101,14 @@ describe("scaffoldTemplateDocs", () => {
             projectNumber: 1,
             priorityField: "Priority",
             statusField: "Status",
+            sizeField: "Size",
             mcpServerName: "github",
           },
         },
         workflow: {
           defaults: {
-            architectReview: "optional",
+            preDevelopmentReview: "optional",
+            postDevelopmentReview: "optional",
             testing: "required",
           },
           models: createDefaultWorkflowModels(),
@@ -110,6 +120,7 @@ describe("scaffoldTemplateDocs", () => {
         expect.arrayContaining([
           path.join(cwd, "docs", "overview.md"),
           path.join(cwd, "docs", "design.md"),
+          path.join(cwd, "docs", "adr", "README.md"),
           path.join(cwd, "docs", "testability", "README.md"),
         ]),
       );
@@ -131,7 +142,8 @@ describe("scaffoldTemplateDocs", () => {
         },
         workflow: {
           defaults: {
-            architectReview: "required",
+            preDevelopmentReview: "required",
+            postDevelopmentReview: "optional",
             testing: "optional",
           },
           models: createDefaultWorkflowModels(),

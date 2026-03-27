@@ -36,7 +36,6 @@ export interface InitQuestionnaireOptions {
 export interface InitQuestionnaireResult {
   readonly projectConfig: ProjectConfig;
   readonly shouldWriteProjectConfig: boolean;
-  readonly githubMcpToken?: string;
 }
 
 const DEFAULT_PROMPTS: QuestionnairePrompts = {
@@ -71,14 +70,10 @@ export async function runInitQuestionnaire(
     existingConfig ?? createDefaultProjectConfig(),
     prompts,
   );
-  const githubMcpToken = projectConfig.backlog.provider === "github-issues"
-    ? await promptGitHubMcpToken(prompts)
-    : undefined;
 
   return {
     projectConfig,
     shouldWriteProjectConfig: true,
-    githubMcpToken,
   };
 }
 
@@ -105,13 +100,26 @@ async function promptProjectConfig(
   }) as BacklogProviderKind;
 
   const backlog = await promptBacklogConfig(provider, defaults, prompts);
-  const architectReview = await promptDefaultMode(
-    "Default architect review behavior?",
-    defaults.workflow.defaults.architectReview,
+  const preDevelopmentReview = await promptDefaultMode(
+    "Default pre-development `/architect-2` behavior (review `/architect-1` draft before `/developer`)?",
+    defaults.workflow.defaults.preDevelopmentReview,
     prompts,
     {
-      required: "Require a second architect review by default",
-      optional: "Let the orchestrator skip architect review by default when the task is clearly small and low-risk",
+      required:
+        "Require `/architect-2` (pre-development) by default (do not use `/architect-1` for the review pass)",
+      optional:
+        "Allow skipping pre-development `/architect-2` by default when the task is clearly small and low-risk",
+    },
+  );
+  const postDevelopmentReview = await promptDefaultMode(
+    "Default post-development `/architect-2` behavior (review implementation after `/developer`, before `/tester`)?",
+    defaults.workflow.defaults.postDevelopmentReview,
+    prompts,
+    {
+      required:
+        "Require `/architect-2` (post-development) by default before adversarial testing",
+      optional:
+        "Allow skipping post-development `/architect-2` by default when developer verification is sufficient",
     },
   );
   const testing = await promptDefaultMode(
@@ -130,7 +138,8 @@ async function promptProjectConfig(
     backlog,
     workflow: {
       defaults: {
-        architectReview,
+        preDevelopmentReview,
+        postDevelopmentReview,
         testing,
       },
       models,
@@ -144,7 +153,7 @@ async function promptWorkflowModels(
 ): Promise<WorkflowModels> {
   const useRecommended = await prompts.confirm({
     message:
-      "Use recommended Cursor models for /planner, /architect, /developer, and /tester?",
+      "Use recommended Cursor models for /planner, /architect-1, /architect-2, /developer, and /tester?",
     default: true,
   });
 
@@ -161,10 +170,19 @@ async function promptWorkflowModels(
     })
   ).trim();
 
-  const architect = (
+  const architect1 = (
     await prompts.input({
-      message: "Model id for /architect:",
-      default: defaults.architect,
+      message: "Model id for /architect-1:",
+      default: defaults.architect1,
+      validate: (value) =>
+        value.trim() ? true : "Enter a model id (see Cursor docs).",
+    })
+  ).trim();
+
+  const architect2 = (
+    await prompts.input({
+      message: "Model id for /architect-2:",
+      default: defaults.architect2,
       validate: (value) =>
         value.trim() ? true : "Enter a model id (see Cursor docs).",
     })
@@ -188,7 +206,7 @@ async function promptWorkflowModels(
     })
   ).trim();
 
-  return { planner, architect, developer, tester };
+  return { planner, architect1, architect2, developer, tester };
 }
 
 async function promptBacklogConfig(
@@ -241,6 +259,13 @@ async function promptBacklogConfig(
         value.trim() ? true : "Field name is required.",
     })).trim();
 
+    const sizeField = (await prompts.input({
+      message: "Project field name for task size (S / M / L / XL):",
+      default: githubDefaults?.sizeField ?? "Size",
+      validate: (value) =>
+        value.trim() ? true : "Field name is required.",
+    })).trim();
+
     const labelRaw = (await prompts.input({
       message:
         "Optional issue label filter (leave blank for none; secondary to Project items):",
@@ -257,6 +282,7 @@ async function promptBacklogConfig(
           : {}),
         priorityField,
         statusField,
+        sizeField,
         ...(labelRaw.trim().length > 0 ? { label: labelRaw.trim() } : {}),
         mcpServerName: githubDefaults?.mcpServerName ?? "github",
       },
@@ -348,8 +374,9 @@ function formatAccountChoice(a: GitHubAccount): string {
   return `${a.account} @ ${a.host}${active}`;
 }
 
-async function promptGitHubMcpToken(
-  prompts: QuestionnairePrompts,
+/** Prompt for GitHub MCP token after the effective backlog provider is known. */
+export async function promptGitHubMcpTokenForInit(
+  prompts: QuestionnairePrompts = DEFAULT_PROMPTS,
 ): Promise<string> {
   const envToken = process.env.GITHUB_PERSONAL_ACCESS_TOKEN?.trim();
   const accounts = await listGitHubAccounts();
